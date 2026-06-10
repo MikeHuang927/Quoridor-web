@@ -24,11 +24,16 @@ body {
 }
 
 #infoPanel {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
   text-align: center;
-  font-size: 15px;
-  font-weight: bold;
-  line-height: 1.45;
-  min-height: 66px;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.3;
+  min-height: 62px;
 }
 
 #playerInfo,
@@ -36,6 +41,7 @@ body {
 #turnInfo,
 #winnerInfo {
   margin: 0;
+  white-space: nowrap;
 }
 
 #waitingInfo {
@@ -117,7 +123,7 @@ button {
   border-radius: 14px;
   padding: 14px;
   background: #fafafa;
-  min-height: 190px;
+  min-height: 168px;
 }
 
 .manualCard h2 {
@@ -128,8 +134,8 @@ button {
 
 .manualCard p {
   font-size: 16px;
-  line-height: 1.45;
-  margin: 8px 0 0 0;
+  line-height: 1.35;
+  margin: 6px 0 0 0;
   text-align: center;
 }
 
@@ -176,7 +182,7 @@ button {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  min-height: 80px;
+  min-height: 70px;
   font-size: 18px;
   font-weight: bold;
 }
@@ -353,8 +359,9 @@ button {
   }
 
   #infoPanel {
-    font-size: 13px;
-    min-height: 62px;
+    font-size: 16px;
+    gap: 10px;
+    min-height: 54px;
   }
 
   #bottomPanel button {
