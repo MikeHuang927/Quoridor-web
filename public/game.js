@@ -15,6 +15,10 @@ const instructionOverlay = document.getElementById("instructionOverlay");
 const desktopInstruction = document.getElementById("desktopInstruction");
 const touchInstruction = document.getElementById("touchInstruction");
 
+const nextRoundOverlay = document.getElementById("nextRoundOverlay");
+const winnerFirstBtn = document.getElementById("winnerFirstBtn");
+const winnerSecondBtn = document.getElementById("winnerSecondBtn");
+
 let instructionClosed = false;
 let instructionLastTapTime = 0;
 
@@ -46,9 +50,7 @@ function closeInstructionOverlay() {
 }
 
 function showInstructionBeforeGame() {
-  if (!instructionOverlay || !desktopInstruction || !touchInstruction) {
-    return;
-  }
+  if (!instructionOverlay || !desktopInstruction || !touchInstruction) return;
 
   const isTouchDevice = isTouchDeviceForInstruction();
 
@@ -163,6 +165,7 @@ socket.on("playerAssigned", (player) => {
 socket.on("gameState", (state) => {
   gameState = state;
   clearLocalSelections();
+  updateNextRoundOverlay();
   draw();
 });
 
@@ -176,6 +179,14 @@ undoBtn.addEventListener("click", () => {
 
 restartBtn.addEventListener("click", () => {
   socket.emit("restart");
+});
+
+winnerFirstBtn.addEventListener("click", () => {
+  socket.emit("nextRoundChoice", { choice: "first" });
+});
+
+winnerSecondBtn.addEventListener("click", () => {
+  socket.emit("nextRoundChoice", { choice: "second" });
 });
 
 document.addEventListener("keydown", (e) => {
@@ -249,7 +260,7 @@ canvas.addEventListener("touchstart", (e) => {
     return;
   }
 
-  const inventoryPlayer = clickedInventory(pos.x, pos.y);
+  const inventoryPlayer = !selectedPawn ? clickedInventory(pos.x, pos.y) : null;
 
   if (inventoryPlayer && inventoryPlayer === myPlayer) {
     if (gameState.players[myPlayer].walls <= 0) return;
@@ -319,16 +330,21 @@ canvas.addEventListener("touchend", (e) => {
 
   touchSession = null;
 
-  if (startedOnInventory) {
-    return;
-  }
-
-  if (wasMoved || wasLongPress) {
-    return;
-  }
+  if (startedOnInventory) return;
+  if (wasMoved || wasLongPress) return;
 
   handleTouchTap(x, y);
 }, { passive: false });
+
+function updateNextRoundOverlay() {
+  if (!gameState || !nextRoundOverlay) return;
+
+  if (gameState.gameOver && myPlayer === gameState.winner) {
+    nextRoundOverlay.classList.remove("hidden");
+  } else {
+    nextRoundOverlay.classList.add("hidden");
+  }
+}
 
 function handleMouseCanvasAction(x, y) {
   if (!gameState) return;
@@ -373,6 +389,38 @@ function handleMouseCanvasAction(x, y) {
     });
 
     clearLocalSelections();
+    return;
+  }
+
+  handleMousePawnAction(x, y);
+}
+
+function handleMousePawnAction(x, y) {
+  const tappedPawn = isTouchOnMyPawn(x, y);
+  const tappedCell = getPlayableCellFromPoint(x, y);
+
+  if (!selectedPawn) {
+    if (tappedPawn) {
+      selectedPawn = true;
+      pendingPawnMove = null;
+      draw();
+    }
+
+    return;
+  }
+
+  if (tappedCell) {
+    const move = getMoveFromTappedCell(tappedCell.logicalR, tappedCell.logicalC);
+
+    if (move) {
+      socket.emit("move", {
+        targetR: move.targetR,
+        targetC: move.targetC
+      });
+
+      clearLocalSelections();
+      return;
+    }
   }
 }
 
@@ -391,7 +439,7 @@ function handleTouchTap(x, y) {
 
 function handleTouchPawnTap(x, y) {
   const tappedPawn = isTouchOnMyPawn(x, y);
-  const tappedCell = getBoardCellFromPoint(x, y);
+  const tappedCell = getPlayableCellFromPoint(x, y);
 
   if (!selectedPawn) {
     if (tappedPawn) {
@@ -424,8 +472,8 @@ function handleTouchPawnTap(x, y) {
 
     if (isDoubleTap("pawnConfirm")) {
       socket.emit("move", {
-        dr: pendingPawnMove.dr,
-        dc: pendingPawnMove.dc
+        targetR: pendingPawnMove.targetR,
+        targetC: pendingPawnMove.targetC
       });
 
       clearLocalSelections();
@@ -463,9 +511,7 @@ function handleTouchWallTap(x, y) {
   if (pendingWallRotateTimer) {
     clearPendingWallRotate();
 
-    if (tryConfirmWallPlacement()) {
-      return;
-    }
+    if (tryConfirmWallPlacement()) return;
 
     draw();
     return;
@@ -474,9 +520,7 @@ function handleTouchWallTap(x, y) {
   if (now - lastWallFreeTapTime <= DOUBLE_TAP_TIME) {
     lastWallFreeTapTime = 0;
 
-    if (tryConfirmWallPlacement()) {
-      return;
-    }
+    if (tryConfirmWallPlacement()) return;
 
     draw();
     return;
@@ -637,6 +681,10 @@ function viewRowForPawn(logicalRow) {
 
 function logicalRowFromViewRow(viewRow) {
   if (!isPlayerTwoView()) return viewRow;
+
+  if (viewRow === OUTSIDE_TOP) return OUTSIDE_BOTTOM;
+  if (viewRow === OUTSIDE_BOTTOM) return OUTSIDE_TOP;
+
   return BOARD_SIZE - 1 - viewRow;
 }
 
@@ -935,33 +983,53 @@ function getDisplayedPawnPosition(pid) {
   return { x: cx, y: cy };
 }
 
-function getBoardCellFromPoint(x, y) {
+function getPlayableCellFromPoint(x, y) {
   const c = Math.floor((x - MARGIN_X) / CELL);
-  const viewR = Math.floor((y - MARGIN_Y) / CELL);
 
-  if (c < 0 || c >= BOARD_SIZE) {
-    return null;
+  if (c < 0 || c >= BOARD_SIZE) return null;
+
+  const viewRRaw = Math.floor((y - MARGIN_Y) / CELL);
+
+  if (viewRRaw >= 0 && viewRRaw < BOARD_SIZE) {
+    return {
+      logicalR: logicalRowFromViewRow(viewRRaw),
+      logicalC: c
+    };
   }
 
-  if (viewR < 0 || viewR >= BOARD_SIZE) {
-    return null;
+  if (viewRRaw === OUTSIDE_TOP) {
+    return {
+      logicalR: logicalRowFromViewRow(OUTSIDE_TOP),
+      logicalC: c
+    };
   }
 
-  return {
-    logicalR: logicalRowFromViewRow(viewR),
-    logicalC: c
-  };
+  if (viewRRaw === OUTSIDE_BOTTOM) {
+    return {
+      logicalR: logicalRowFromViewRow(OUTSIDE_BOTTOM),
+      logicalC: c
+    };
+  }
+
+  return null;
 }
 
 function getMoveFromTappedCell(targetR, targetC) {
   if (!gameState || !myPlayer) return null;
 
   const current = gameState.players[myPlayer].pos;
-  const dr = targetR - current.r;
-  const dc = targetC - current.c;
 
-  if (Math.abs(dr) + Math.abs(dc) !== 1) {
-    return null;
+  const isInitialEntry =
+    (myPlayer === 1 && current.r === OUTSIDE_BOTTOM && targetR === BOARD_SIZE - 1) ||
+    (myPlayer === 2 && current.r === OUTSIDE_TOP && targetR === 0);
+
+  if (!isInitialEntry) {
+    const dr = targetR - current.r;
+    const dc = targetC - current.c;
+
+    if (Math.abs(dr) + Math.abs(dc) !== 1) {
+      return null;
+    }
   }
 
   if (!canMoveToClient(myPlayer, targetR, targetC)) {
@@ -969,8 +1037,6 @@ function getMoveFromTappedCell(targetR, targetC) {
   }
 
   return {
-    dr,
-    dc,
     targetR,
     targetC
   };
@@ -983,32 +1049,24 @@ function canMoveToClient(pid, row, col) {
   const r = player.pos.r;
   const c = player.pos.c;
 
-  if (col < 0 || col >= BOARD_SIZE) {
-    return false;
-  }
+  if (col < 0 || col >= BOARD_SIZE) return false;
+  if (row < OUTSIDE_TOP || row > OUTSIDE_BOTTOM) return false;
 
-  if (row < OUTSIDE_TOP || row > OUTSIDE_BOTTOM) {
-    return false;
-  }
+  if (row === OUTSIDE_TOP && pid !== 1) return false;
+  if (row === OUTSIDE_BOTTOM && pid !== 2) return false;
 
-  if (row === OUTSIDE_TOP && pid !== 1) {
-    return false;
-  }
+  if (row === opponent.pos.r && col === opponent.pos.c) return false;
 
-  if (row === OUTSIDE_BOTTOM && pid !== 2) {
-    return false;
-  }
+  const isInitialEntry =
+    (pid === 1 && r === OUTSIDE_BOTTOM && row === BOARD_SIZE - 1) ||
+    (pid === 2 && r === OUTSIDE_TOP && row === 0);
 
-  if (row === opponent.pos.r && col === opponent.pos.c) {
-    return false;
-  }
+  if (!isInitialEntry) {
+    if (Math.abs(r - row) + Math.abs(c - col) !== 1) return false;
 
-  if (Math.abs(r - row) + Math.abs(c - col) !== 1) {
-    return false;
-  }
-
-  if (r === OUTSIDE_TOP || r === OUTSIDE_BOTTOM) {
-    if (col !== c) return false;
+    if (r === OUTSIDE_TOP || r === OUTSIDE_BOTTOM) {
+      if (col !== c) return false;
+    }
   }
 
   return !isBlockedWithWalls(
@@ -1079,15 +1137,15 @@ function isWallConflictClient(orientation, r, c, horizontalWalls, verticalWalls)
 function isBlockedWithWalls(horizontalWalls, verticalWalls, r1, c1, r2, c2) {
   if (r2 === r1 - 1) {
     return (
-      wallExists(horizontalWalls, r2, c1) ||
-      wallExists(horizontalWalls, r2, c1 - 1)
+      wallExists(horizontalWalls, r2, c2) ||
+      wallExists(horizontalWalls, r2, c2 - 1)
     );
   }
 
   if (r2 === r1 + 1) {
     return (
-      wallExists(horizontalWalls, r1, c1) ||
-      wallExists(horizontalWalls, r1, c1 - 1)
+      wallExists(horizontalWalls, r1, c2) ||
+      wallExists(horizontalWalls, r1, c2 - 1)
     );
   }
 
