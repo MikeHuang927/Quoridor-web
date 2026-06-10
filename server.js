@@ -13,9 +13,18 @@ const BOARD_SIZE = 9;
 const OUTSIDE_TOP = -1;
 const OUTSIDE_BOTTOM = BOARD_SIZE;
 
-let game = createNewGame(1);
+let game = createNewGame(1, {
+  started: false,
+  mode: "normal",
+  timerMinutes: 10
+});
 
-function createNewGame(startPlayer = 1) {
+let timerInterval = null;
+
+function createNewGame(startPlayer = 1, options = {}) {
+  const timerMinutes = options.timerMinutes || 10;
+  const timerMs = timerMinutes * 60 * 1000;
+
   return {
     players: {
       1: {
@@ -36,7 +45,16 @@ function createNewGame(startPlayer = 1) {
     verticalWalls: [],
     history: [],
     gameOver: false,
-    winner: null
+    winner: null,
+    started: options.started || false,
+    mode: options.mode || "normal",
+    timerMinutes,
+    timers: {
+      1: timerMs,
+      2: timerMs
+    },
+    turnStartedAt: Date.now(),
+    timeLoser: null
   };
 }
 
@@ -47,7 +65,13 @@ function cloneState() {
     horizontalWalls: game.horizontalWalls,
     verticalWalls: game.verticalWalls,
     gameOver: game.gameOver,
-    winner: game.winner
+    winner: game.winner,
+    started: game.started,
+    mode: game.mode,
+    timerMinutes: game.timerMinutes,
+    timers: game.timers,
+    turnStartedAt: game.turnStartedAt,
+    timeLoser: game.timeLoser
   }));
 }
 
@@ -62,6 +86,12 @@ function restoreState(state) {
   game.verticalWalls = state.verticalWalls;
   game.gameOver = state.gameOver;
   game.winner = state.winner;
+  game.started = state.started;
+  game.mode = state.mode;
+  game.timerMinutes = state.timerMinutes;
+  game.timers = state.timers;
+  game.turnStartedAt = Date.now();
+  game.timeLoser = state.timeLoser;
 }
 
 function getPlayerNumber(socketId) {
@@ -126,17 +156,13 @@ function isWallConflict(orientation, r, c) {
 
 function isBlocked(r1, c1, r2, c2) {
   if (r2 === r1 - 1) {
-    return (
-      wallExists(game.horizontalWalls, r2, c2) ||
-      wallExists(game.horizontalWalls, r2, c2 - 1)
-    );
+    return wallExists(game.horizontalWalls, r2, c2) ||
+           wallExists(game.horizontalWalls, r2, c2 - 1);
   }
 
   if (r2 === r1 + 1) {
-    return (
-      wallExists(game.horizontalWalls, r1, c2) ||
-      wallExists(game.horizontalWalls, r1, c2 - 1)
-    );
+    return wallExists(game.horizontalWalls, r1, c2) ||
+           wallExists(game.horizontalWalls, r1, c2 - 1);
   }
 
   if (r1 < 0 || r1 >= BOARD_SIZE) {
@@ -144,17 +170,13 @@ function isBlocked(r1, c1, r2, c2) {
   }
 
   if (c2 === c1 - 1) {
-    return (
-      wallExists(game.verticalWalls, r1, c2) ||
-      wallExists(game.verticalWalls, r1 - 1, c2)
-    );
+    return wallExists(game.verticalWalls, r1, c2) ||
+           wallExists(game.verticalWalls, r1 - 1, c2);
   }
 
   if (c2 === c1 + 1) {
-    return (
-      wallExists(game.verticalWalls, r1, c1) ||
-      wallExists(game.verticalWalls, r1 - 1, c1)
-    );
+    return wallExists(game.verticalWalls, r1, c1) ||
+           wallExists(game.verticalWalls, r1 - 1, c1);
   }
 
   return false;
@@ -166,10 +188,7 @@ function validNeighborFrom(current, nr, nc) {
   if (nr >= 0 && nr < BOARD_SIZE) return true;
 
   if (nr === OUTSIDE_TOP || nr === OUTSIDE_BOTTOM) {
-    if (current.r === nr && Math.abs(current.c - nc) === 1) {
-      return true;
-    }
-
+    if (current.r === nr && Math.abs(current.c - nc) === 1) return true;
     return nc === current.c;
   }
 
@@ -258,9 +277,7 @@ function canMoveTo(playerNumber, row, col) {
 
   if (row === opponent.pos.r && col === opponent.pos.c) return false;
 
-  if (isOutsideStartSideMove(playerNumber, player.pos, row, col)) {
-    return true;
-  }
+  if (isOutsideStartSideMove(playerNumber, player.pos, row, col)) return true;
 
   if (isInitialEntryMove(playerNumber, player.pos, row, col)) {
     return !isBlocked(r, c, row, col);
@@ -301,7 +318,37 @@ function canPlaceWall(orientation, r, c) {
   return valid;
 }
 
+function updateActiveTimer() {
+  if (!game.started) return;
+  if (game.gameOver) return;
+  if (game.mode !== "timed") return;
+
+  const now = Date.now();
+  const elapsed = now - game.turnStartedAt;
+
+  if (elapsed <= 0) return;
+
+  const player = game.currentPlayer;
+
+  game.timers[player] -= elapsed;
+  game.turnStartedAt = now;
+
+  if (game.timers[player] <= 0) {
+    game.timers[player] = 0;
+    game.gameOver = true;
+    game.timeLoser = player;
+    game.winner = getOpponent(player);
+  }
+}
+
+function switchTurn() {
+  game.currentPlayer = getOpponent(game.currentPlayer);
+  game.turnStartedAt = Date.now();
+}
+
 function publicGameState() {
+  updateActiveTimer();
+
   return {
     players: {
       1: {
@@ -319,7 +366,12 @@ function publicGameState() {
     horizontalWalls: game.horizontalWalls,
     verticalWalls: game.verticalWalls,
     gameOver: game.gameOver,
-    winner: game.winner
+    winner: game.winner,
+    started: game.started,
+    mode: game.mode,
+    timerMinutes: game.timerMinutes,
+    timers: game.timers,
+    timeLoser: game.timeLoser
   };
 }
 
@@ -327,14 +379,23 @@ function broadcastGame() {
   io.emit("gameState", publicGameState());
 }
 
-function resetGameKeepingPlayers(startPlayer) {
+function resetGameKeepingPlayers(startPlayer, keepSettings = true) {
   const oldPlayer1 = game.players[1].id;
   const oldPlayer2 = game.players[2].id;
 
-  game = createNewGame(startPlayer);
+  const mode = keepSettings ? game.mode : "normal";
+  const timerMinutes = keepSettings ? game.timerMinutes : 10;
+  const started = keepSettings ? game.started : false;
+
+  game = createNewGame(startPlayer, {
+    started,
+    mode,
+    timerMinutes
+  });
 
   game.players[1].id = oldPlayer1;
   game.players[2].id = oldPlayer2;
+  game.turnStartedAt = Date.now();
 
   broadcastGame();
 }
@@ -353,12 +414,47 @@ io.on("connection", socket => {
   socket.emit("playerAssigned", assignedPlayer);
   socket.emit("gameState", publicGameState());
 
+  socket.on("startGame", data => {
+    const playerNumber = getPlayerNumber(socket.id);
+
+    if (playerNumber !== 1) return;
+    if (game.started) return;
+
+    const mode = data && data.mode === "timed" ? "timed" : "normal";
+    let timerMinutes = Number(data && data.timerMinutes);
+
+    if (!Number.isFinite(timerMinutes)) timerMinutes = 10;
+    timerMinutes = Math.max(5, Math.min(60, Math.round(timerMinutes)));
+
+    const oldPlayer1 = game.players[1].id;
+    const oldPlayer2 = game.players[2].id;
+
+    game = createNewGame(1, {
+      started: true,
+      mode,
+      timerMinutes
+    });
+
+    game.players[1].id = oldPlayer1;
+    game.players[2].id = oldPlayer2;
+    game.turnStartedAt = Date.now();
+
+    broadcastGame();
+  });
+
   socket.on("move", data => {
     const playerNumber = getPlayerNumber(socket.id);
 
     if (!playerNumber) return;
+    if (!game.started) return;
     if (game.gameOver) return;
     if (playerNumber !== game.currentPlayer) return;
+
+    updateActiveTimer();
+    if (game.gameOver) {
+      broadcastGame();
+      return;
+    }
 
     const current = game.players[playerNumber].pos;
 
@@ -380,6 +476,7 @@ io.on("connection", socket => {
 
     if (setupSideMove) {
       game.players[playerNumber].pos = { r: nr, c: nc };
+      game.turnStartedAt = Date.now();
       broadcastGame();
       return;
     }
@@ -395,7 +492,7 @@ io.on("connection", socket => {
       return;
     }
 
-    game.currentPlayer = getOpponent(game.currentPlayer);
+    switchTurn();
     broadcastGame();
   });
 
@@ -403,11 +500,15 @@ io.on("connection", socket => {
     const playerNumber = getPlayerNumber(socket.id);
 
     if (!playerNumber) return;
+    if (!game.started) return;
     if (game.gameOver) return;
     if (playerNumber !== game.currentPlayer) return;
     if (game.players[playerNumber].walls <= 0) return;
+    if (isAtOwnStartOutside(playerNumber)) return;
 
-    if (isAtOwnStartOutside(playerNumber)) {
+    updateActiveTimer();
+    if (game.gameOver) {
+      broadcastGame();
       return;
     }
 
@@ -424,8 +525,8 @@ io.on("connection", socket => {
     }
 
     game.players[playerNumber].walls -= 1;
-    game.currentPlayer = getOpponent(game.currentPlayer);
 
+    switchTurn();
     broadcastGame();
   });
 
@@ -439,13 +540,14 @@ io.on("connection", socket => {
     const choice = data && data.choice;
     const startPlayer = choice === "second" ? getOpponent(playerNumber) : playerNumber;
 
-    resetGameKeepingPlayers(startPlayer);
+    resetGameKeepingPlayers(startPlayer, true);
   });
 
   socket.on("undo", () => {
     const playerNumber = getPlayerNumber(socket.id);
 
     if (!playerNumber) return;
+    if (!game.started) return;
     if (game.history.length === 0) return;
 
     const lastState = game.history.pop();
@@ -459,7 +561,7 @@ io.on("connection", socket => {
 
     if (!playerNumber) return;
 
-    resetGameKeepingPlayers(1);
+    resetGameKeepingPlayers(1, false);
   });
 
   socket.on("disconnect", () => {
@@ -490,6 +592,15 @@ function getLocalIPAddresses() {
 
   return addresses;
 }
+
+timerInterval = setInterval(() => {
+  if (!game.started) return;
+  if (game.gameOver) return;
+  if (game.mode !== "timed") return;
+
+  updateActiveTimer();
+  broadcastGame();
+}, 1000);
 
 const PORT = process.env.PORT || 3000;
 
