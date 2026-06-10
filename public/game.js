@@ -11,6 +11,9 @@ const waitingInfo = document.getElementById("waitingInfo");
 const turnInfo = document.getElementById("turnInfo");
 const winnerInfo = document.getElementById("winnerInfo");
 
+const timerP1 = document.getElementById("timerP1");
+const timerP2 = document.getElementById("timerP2");
+
 const instructionOverlay = document.getElementById("instructionOverlay");
 const desktopInstruction = document.getElementById("desktopInstruction");
 const touchInstruction = document.getElementById("touchInstruction");
@@ -144,7 +147,6 @@ let ignoreMouseClickUntil = 0;
 
 let pendingWallRotateTimer = null;
 let lastWallFreeTapTime = 0;
-let pendingPawnCancelTimer = null;
 
 const DOUBLE_TAP_TIME = 360;
 const TOUCH_TAP_MAX_DURATION = 280;
@@ -176,8 +178,18 @@ socket.on("playerAssigned", (player) => {
 });
 
 socket.on("gameState", (state) => {
+  const previousState = gameState;
   gameState = state;
-  clearLocalSelections();
+
+  if (
+    !gameState.started ||
+    gameState.gameOver ||
+    gameState.currentPlayer !== myPlayer ||
+    (previousState && previousState.currentPlayer !== gameState.currentPlayer)
+  ) {
+    clearLocalSelections();
+  }
+
   updateSetupOverlay();
   updateNextRoundOverlay();
   draw();
@@ -300,14 +312,11 @@ canvas.addEventListener("touchstart", (e) => {
   if (gameState.gameOver) return;
   if (myPlayer !== gameState.currentPlayer) return;
 
-  if (isTouchOnMyPawn(pos.x, pos.y) && !selectedWall) {
-    return;
-  }
-
   const inventoryPlayer = !selectedPawn ? clickedInventory(pos.x, pos.y) : null;
 
   if (inventoryPlayer && inventoryPlayer === myPlayer) {
     if (gameState.players[myPlayer].walls <= 0) return;
+    if (isPlayerAtOwnStartOutside(myPlayer)) return;
 
     if (selectedWall) {
       clearLocalSelections();
@@ -319,7 +328,6 @@ canvas.addEventListener("touchstart", (e) => {
     selectedPawn = false;
     pendingPawnMove = null;
     clearPendingWallRotate();
-    clearPendingPawnCancel();
 
     selectedWall = {
       player: myPlayer,
@@ -375,7 +383,11 @@ canvas.addEventListener("touchend", (e) => {
 
   touchSession = null;
 
-  if (startedOnInventory) return;
+  if (startedOnInventory) {
+    draw();
+    return;
+  }
+
   if (wasMoved || wasLongPress) return;
 
   handleTouchTap(x, y);
@@ -439,7 +451,6 @@ function handleMouseCanvasAction(x, y) {
 
     selectedPawn = false;
     pendingPawnMove = null;
-    clearPendingPawnCancel();
 
     selectedWall = {
       player: myPlayer,
@@ -451,8 +462,10 @@ function handleMouseCanvasAction(x, y) {
     return;
   }
 
-  if (selectedWall && previewWall) {
-    if (!canPlaceWallClient(selectedWall.orientation, previewWall.r, previewWall.c)) {
+  if (selectedWall) {
+    updatePreviewWall(x, y);
+
+    if (!previewWall || !canPlaceWallClient(selectedWall.orientation, previewWall.r, previewWall.c)) {
       draw();
       return;
     }
@@ -528,40 +541,7 @@ function handleTouchPawnTap(x, y) {
     return;
   }
 
-  if (selectedPawn && tappedPawn) {
-    if (pendingPawnMove) {
-      const now = Date.now();
-
-      if (
-        lastTap.type === "pawnCancelCandidate" &&
-        now - lastTap.time <= DOUBLE_TAP_TIME
-      ) {
-        clearPendingPawnCancel();
-
-        socket.emit("move", {
-          targetR: pendingPawnMove.targetR,
-          targetC: pendingPawnMove.targetC
-        });
-
-        clearLocalSelections();
-        return;
-      }
-
-      clearPendingPawnCancel();
-
-      lastTap = {
-        type: "pawnCancelCandidate",
-        time: now
-      };
-
-      pendingPawnCancelTimer = setTimeout(() => {
-        clearLocalSelections();
-        draw();
-      }, DOUBLE_TAP_TIME);
-
-      return;
-    }
-
+  if (selectedPawn && tappedPawn && !pendingPawnMove) {
     clearLocalSelections();
     draw();
     return;
@@ -579,7 +559,6 @@ function handleTouchPawnTap(x, y) {
         tappedValidCell.targetC !== pendingPawnMove.targetC
       )
     ) {
-      clearPendingPawnCancel();
       pendingPawnMove = tappedValidCell;
       recordTap("pawnConfirm");
       draw();
@@ -587,8 +566,6 @@ function handleTouchPawnTap(x, y) {
     }
 
     if (isDoubleTap("pawnConfirm")) {
-      clearPendingPawnCancel();
-
       socket.emit("move", {
         targetR: pendingPawnMove.targetR,
         targetC: pendingPawnMove.targetC
@@ -607,7 +584,6 @@ function handleTouchPawnTap(x, y) {
     const move = getMoveFromTappedCell(tappedCell.logicalR, tappedCell.logicalC);
 
     if (move) {
-      clearPendingPawnCancel();
       pendingPawnMove = move;
       recordTap("pawnConfirm");
       draw();
@@ -680,13 +656,6 @@ function clearPendingWallRotate() {
   }
 }
 
-function clearPendingPawnCancel() {
-  if (pendingPawnCancelTimer) {
-    clearTimeout(pendingPawnCancelTimer);
-    pendingPawnCancelTimer = null;
-  }
-}
-
 function tryConfirmWallPlacement() {
   if (!selectedWall || !previewWall) return false;
 
@@ -728,7 +697,6 @@ function isDoubleTap(type) {
 
 function clearLocalSelections() {
   clearPendingWallRotate();
-  clearPendingPawnCancel();
 
   selectedWall = null;
   previewWall = null;
@@ -842,7 +810,6 @@ function draw() {
   if (gameState) {
     drawPlacedWalls();
     drawPlayers();
-    drawTimersOnCanvas();
     drawPreviewWall();
     drawInfo();
   }
@@ -889,66 +856,6 @@ function drawWallInventory() {
       ctx.fillRect(x, y, INV_WALL_WIDTH, INV_WALL_HEIGHT);
       ctx.strokeRect(x, y, INV_WALL_WIDTH, INV_WALL_HEIGHT);
     }
-  }
-}
-
-function drawRoundedRect(x, y, w, h, radius) {
-  const r = Math.min(radius, w / 2, h / 2);
-
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
-function drawTimersOnCanvas() {
-  if (!gameState) return;
-  if (gameState.mode !== "timed") return;
-
-  for (const pid of [1, 2]) {
-    const isBottom = isBottomInventory(pid);
-
-    let y;
-
-    if (isBottom) {
-      y = MARGIN_Y + BOARD_SIZE * CELL + 34;
-    } else {
-      y = MARGIN_Y - 34;
-    }
-
-    const x = MARGIN_X + 6;
-    const w = 128;
-    const h = 34;
-    const boxY = y - h / 2;
-
-    const text = `P${pid} ${formatTime(gameState.timers[pid])}`;
-    const color = pid === 1 ? colors.p1 : colors.p2;
-    const active = gameState.started && !gameState.gameOver && gameState.currentPlayer === pid;
-
-    ctx.save();
-
-    ctx.fillStyle = "white";
-    ctx.strokeStyle = active ? color : "#777";
-    ctx.lineWidth = active ? 5 : 3;
-
-    drawRoundedRect(x, boxY, w, h, 8);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.font = active ? "bold 22px Arial" : "bold 19px Arial";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = color;
-    ctx.fillText(text, x + 10, y + 1);
-
-    ctx.restore();
   }
 }
 
@@ -1497,6 +1404,21 @@ function drawInfo() {
     turnInfo.textContent = `計時模式｜回合：玩家 ${gameState.currentPlayer}`;
   } else {
     turnInfo.textContent = `一般模式｜回合：玩家 ${gameState.currentPlayer}`;
+  }
+
+  if (gameState.mode === "timed" && gameState.started) {
+    timerP1.textContent = `P1 ${formatTime(gameState.timers[1])}`;
+    timerP2.textContent = `P2 ${formatTime(gameState.timers[2])}`;
+    timerP1.classList.remove("hidden");
+    timerP2.classList.remove("hidden");
+
+    timerP1.classList.toggle("activeTimer", gameState.currentPlayer === 1 && !gameState.gameOver);
+    timerP2.classList.toggle("activeTimer", gameState.currentPlayer === 2 && !gameState.gameOver);
+  } else {
+    timerP1.classList.add("hidden");
+    timerP2.classList.add("hidden");
+    timerP1.classList.remove("activeTimer");
+    timerP2.classList.remove("activeTimer");
   }
 
   if (gameState.gameOver) {
