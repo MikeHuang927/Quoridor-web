@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Quoridor.web</title>
+  <title>9x9 擋板棋網頁對弈</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -22,14 +22,15 @@
             <div class="key">↓</div>
             <div class="key">→</div>
           </div>
-          <p>輪到你時，使用方向鍵移動棋子。</p>
+          <p>輪到你時，可使用方向鍵移動棋子。</p>
+          <p>第一步也可以點選起始列任一格進場。</p>
         </div>
 
         <div class="manualCard">
           <h2>② 放置擋板</h2>
           <div class="wallDiagram">
             <div class="wallIcon horizontal"></div>
-            <span>點選自己的擋板</span>
+            <span>點選自己的擋板區域</span>
             <div class="arrowText">→</div>
             <div class="wallIcon horizontal active"></div>
           </div>
@@ -49,13 +50,13 @@
         <div class="manualCard">
           <h2>④ 勝利目標</h2>
           <div class="goalDiagram">
-            <div class="goalLine topGoal">終點</div>
+            <div class="goalLine topGoal">終點外側</div>
             <div class="miniBoard">
               <div class="pawn blue">1</div>
             </div>
-            <div class="goalLine bottomStart">起點</div>
+            <div class="goalLine bottomStart">起點外側</div>
           </div>
-          <p>從自己這一側出發，走到對方那一側即可獲勝。</p>
+          <p>必須走出對方邊界外側，才算獲勝。</p>
         </div>
       </div>
 
@@ -73,6 +74,7 @@
             <span>點選自己的棋子</span>
           </div>
           <p>點一下自己的棋子後，棋子會被選取。</p>
+          <p>第一步可直接點選起始列任一格進場。</p>
         </div>
 
         <div class="manualCard">
@@ -105,28 +107,39 @@
           <h2>④ 放置擋板</h2>
           <div class="wallTouchDiagram">
             <div class="wallIcon horizontal active"></div>
-            <span>點選擋板</span>
+            <span>點選擋板區域</span>
             <div class="arrowText">→</div>
             <div class="wallIcon vertical active"></div>
           </div>
-          <p>點選自己的擋板庫存後，可用手指拖曳擋板。</p>
+          <p>點選自己的擋板區域後，可用手指拖曳擋板。</p>
           <p>單點擋板可切換方向；連點兩下任意位置可確認放置。</p>
         </div>
 
         <div class="manualCard wideCard">
           <h2>⑤ 勝利目標</h2>
           <div class="goalDiagram">
-            <div class="goalLine topGoal">終點</div>
+            <div class="goalLine topGoal">終點外側</div>
             <div class="miniBoard">
               <div class="pawn blue">1</div>
             </div>
-            <div class="goalLine bottomStart">起點</div>
+            <div class="goalLine bottomStart">起點外側</div>
           </div>
-          <p>你的棋子會從畫面下方出發，走到畫面上方即可獲勝。</p>
+          <p>你的棋子會從畫面下方出發，必須走到畫面上方外側才獲勝。</p>
         </div>
       </div>
 
-      <div class="startHint">點擊螢幕任意位置開始遊戲</div>
+      <div class="startHint">連續點擊兩次螢幕任意位置開始遊戲</div>
+    </div>
+  </div>
+
+  <div id="nextRoundOverlay" class="hidden">
+    <div id="nextRoundBox">
+      <h1>你獲勝了！</h1>
+      <p>請選擇下一局你要先手或後手。</p>
+      <div id="nextRoundButtons">
+        <button id="winnerFirstBtn">下一局我先手</button>
+        <button id="winnerSecondBtn">下一局我後手</button>
+      </div>
     </div>
   </div>
 
