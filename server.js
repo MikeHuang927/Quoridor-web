@@ -78,6 +78,10 @@ function getStartOutsideRow(playerNumber) {
   return playerNumber === 1 ? OUTSIDE_BOTTOM : OUTSIDE_TOP;
 }
 
+function isAtOwnStartOutside(playerNumber) {
+  return game.players[playerNumber].pos.r === getStartOutsideRow(playerNumber);
+}
+
 function wallExists(list, r, c) {
   return list.some(w => w.r === r && w.c === c);
 }
@@ -184,11 +188,9 @@ function hasPath(playerNumber) {
     const current = queue.shift();
     const key = `${current.r},${current.c}`;
 
-    if (current.r === goal) {
-      return true;
-    }
-
+    if (current.r === goal) return true;
     if (visited.has(key)) continue;
+
     visited.add(key);
 
     const directions = [
@@ -374,6 +376,14 @@ io.on("connection", socket => {
 
     if (!canMoveTo(playerNumber, nr, nc)) return;
 
+    const setupSideMove = isOutsideStartSideMove(playerNumber, current, nr, nc);
+
+    if (setupSideMove) {
+      game.players[playerNumber].pos = { r: nr, c: nc };
+      broadcastGame();
+      return;
+    }
+
     saveHistory();
 
     game.players[playerNumber].pos = { r: nr, c: nc };
@@ -396,6 +406,10 @@ io.on("connection", socket => {
     if (game.gameOver) return;
     if (playerNumber !== game.currentPlayer) return;
     if (game.players[playerNumber].walls <= 0) return;
+
+    if (isAtOwnStartOutside(playerNumber)) {
+      return;
+    }
 
     const { orientation, r, c } = data;
 
