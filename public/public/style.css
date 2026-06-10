@@ -1,0 +1,366 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #f5f5f5;
+  font-family: Arial, "Microsoft JhengHei", sans-serif;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+  padding-bottom: 10px;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+#infoPanel {
+  text-align: center;
+  font-size: 15px;
+  font-weight: bold;
+  line-height: 1.45;
+  min-height: 66px;
+}
+
+#playerInfo,
+#waitingInfo,
+#turnInfo,
+#winnerInfo {
+  margin: 0;
+}
+
+#waitingInfo {
+  color: #d98200;
+}
+
+#winnerInfo {
+  color: green;
+}
+
+#gameCanvas {
+  background: white;
+  border: 1px solid #d0d0d0;
+  display: block;
+  max-width: 96vw;
+  height: auto;
+  touch-action: none;
+}
+
+#bottomPanel {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+button {
+  width: 120px;
+  height: 36px;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* ===================== */
+/* 說明書覆蓋畫面 */
+/* ===================== */
+
+#instructionOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(245, 245, 245, 0.98);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+#instructionOverlay.hidden {
+  display: none !important;
+}
+
+.instructionPage {
+  width: min(920px, 94vw);
+  max-height: 94vh;
+  overflow-y: auto;
+  background: white;
+  border: 2px solid #222;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.instructionPage h1 {
+  text-align: center;
+  margin: 0 0 18px 0;
+  font-size: 30px;
+}
+
+.manualGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.manualCard {
+  border: 2px solid #ddd;
+  border-radius: 14px;
+  padding: 14px;
+  background: #fafafa;
+  min-height: 190px;
+}
+
+.manualCard h2 {
+  margin: 0 0 10px 0;
+  font-size: 21px;
+  text-align: center;
+}
+
+.manualCard p {
+  font-size: 16px;
+  line-height: 1.45;
+  margin: 8px 0 0 0;
+  text-align: center;
+}
+
+.wideCard {
+  grid-column: 1 / -1;
+}
+
+.startHint {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: bold;
+  color: #0b57d0;
+}
+
+.keyDiagram {
+  display: grid;
+  grid-template-columns: 54px 54px 54px;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.key {
+  width: 54px;
+  height: 46px;
+  border: 2px solid #333;
+  border-radius: 8px;
+  background: #eeeeee;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 30px;
+  font-weight: bold;
+}
+
+.wallDiagram,
+.wallTouchDiagram,
+.rotateDiagram,
+.touchPawnDiagram,
+.doubleTapDiagram {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  min-height: 80px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.wallIcon {
+  background: #4A90E2;
+  border: 3px solid #333;
+  border-radius: 3px;
+}
+
+.wallIcon.horizontal {
+  width: 96px;
+  height: 16px;
+}
+
+.wallIcon.vertical {
+  width: 16px;
+  height: 96px;
+}
+
+.wallIcon.active {
+  outline: 4px solid gold;
+}
+
+.arrowText {
+  font-size: 34px;
+  font-weight: bold;
+}
+
+.mouseRight {
+  border: 2px solid #333;
+  background: #eeeeee;
+  border-radius: 999px;
+  padding: 10px 16px;
+}
+
+.goalDiagram {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.goalLine {
+  width: 190px;
+  text-align: center;
+  font-weight: bold;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.topGoal {
+  background: #d4f8d4;
+  border: 2px solid #38a238;
+}
+
+.bottomStart {
+  background: #dceaff;
+  border: 2px solid #4A90E2;
+}
+
+.miniBoard {
+  width: 150px;
+  height: 120px;
+  border: 2px solid #333;
+  background:
+    linear-gradient(to right, transparent 32%, #333 33%, transparent 34%, transparent 65%, #333 66%, transparent 67%),
+    linear-gradient(to bottom, transparent 32%, #333 33%, transparent 34%, transparent 65%, #333 66%, transparent 67%);
+  display: flex;
+  justify-content: center;
+  align-items: end;
+  padding-bottom: 8px;
+}
+
+.pawn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 3px solid #000;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+}
+
+.pawn.blue {
+  background: blue;
+}
+
+.largePawn {
+  width: 54px;
+  height: 54px;
+  font-size: 24px;
+}
+
+.miniMoveBoard {
+  display: grid;
+  grid-template-columns: 58px 58px 58px;
+  grid-template-rows: 58px 58px 58px;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+}
+
+.miniMoveBoard > div {
+  width: 58px;
+  height: 58px;
+  border: 1px solid #999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.moveCell {
+  background: #fff3c4;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.tapCircle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #eeeeee;
+  border: 3px solid #333;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 22px;
+}
+
+#desktopInstruction,
+#touchInstruction {
+  display: none;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  body {
+    padding-top: 4px;
+  }
+
+  #infoPanel {
+    font-size: 13px;
+    min-height: 62px;
+  }
+
+  #bottomPanel button {
+    width: 108px;
+    height: 34px;
+    font-size: 14px;
+  }
+
+  .instructionPage {
+    width: 90vw;
+    max-height: 90vh;
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .instructionPage h1 {
+    font-size: 24px;
+  }
+
+  .manualGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .manualCard {
+    min-height: auto;
+  }
+
+  .manualCard h2 {
+    font-size: 19px;
+  }
+
+  .manualCard p {
+    font-size: 15px;
+  }
+
+  .startHint {
+    font-size: 18px;
+  }
+
+  .wideCard {
+    grid-column: auto;
+  }
+}
