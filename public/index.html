@@ -23,7 +23,7 @@
             <div class="key">→</div>
           </div>
           <p>方向鍵移動。</p>
-          <p>開局用 ← → 選出發位置，按 ↑ 進場。</p>
+          <p>開局用 ← → 選位置，按 ↑ 進場。</p>
         </div>
 
         <div class="manualCard">
@@ -60,7 +60,7 @@
         </div>
       </div>
 
-      <div class="startHint">點擊任意位置開始</div>
+      <div class="startHint">點擊任意位置繼續</div>
     </div>
 
     <div id="touchInstruction" class="instructionPage">
@@ -118,14 +118,14 @@
         </div>
       </div>
 
-      <div class="startHint">連點兩下任意位置開始</div>
+      <div class="startHint">連點兩下任意位置繼續</div>
     </div>
   </div>
 
-  <div id="setupOverlay">
+  <div id="setupOverlay" class="hidden">
     <div id="setupBox">
       <h1>選擇模式</h1>
-      <p id="setupMessage">玩家 1 設定模式後開始遊戲</p>
+      <p id="setupMessage">請選擇遊戲模式</p>
 
       <div id="modeButtons">
         <button id="normalModeBtn" class="selectedMode">一般模式</button>
@@ -156,7 +156,6 @@
   <div id="app">
     <div id="infoPanel">
       <div id="playerInfo"></div>
-      <div id="timerInfo"></div>
       <div id="turnInfo"></div>
       <div id="waitingInfo"></div>
       <div id="winnerInfo"></div>
