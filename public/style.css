@@ -37,7 +37,6 @@ body {
 }
 
 #playerInfo,
-#timerInfo,
 #waitingInfo,
 #turnInfo,
 #winnerInfo {
@@ -51,10 +50,6 @@ body {
 
 #winnerInfo {
   color: green;
-}
-
-#timerInfo {
-  color: #222;
 }
 
 #gameCanvas {
@@ -85,7 +80,6 @@ button {
 #nextRoundOverlay {
   position: fixed;
   inset: 0;
-  z-index: 9999;
   background: rgba(245, 245, 245, 0.98);
   display: flex;
   justify-content: center;
@@ -93,20 +87,28 @@ button {
 }
 
 #instructionOverlay {
-  cursor: pointer;
   z-index: 10001;
+  cursor: pointer;
+}
+
+#setupOverlay {
+  z-index: 10000;
+}
+
+#nextRoundOverlay {
+  z-index: 10002;
 }
 
 #instructionOverlay.hidden,
 #setupOverlay.hidden,
-#nextRoundOverlay.hidden {
+#nextRoundOverlay.hidden,
+.hidden {
   display: none !important;
 }
 
-.instructionPage {
-  width: min(920px, 94vw);
-  max-height: 94vh;
-  overflow-y: auto;
+.instructionPage,
+#setupBox,
+#nextRoundBox {
   background: white;
   border: 2px solid #222;
   border-radius: 18px;
@@ -114,7 +116,15 @@ button {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
-.instructionPage h1 {
+.instructionPage {
+  width: min(920px, 94vw);
+  max-height: 94vh;
+  overflow-y: auto;
+}
+
+.instructionPage h1,
+#setupBox h1,
+#nextRoundBox h1 {
   text-align: center;
   margin: 0 0 18px 0;
   font-size: 30px;
@@ -318,19 +328,8 @@ button {
 
 #setupBox,
 #nextRoundBox {
-  background: white;
-  border: 2px solid #222;
-  border-radius: 18px;
-  padding: 28px;
   width: min(460px, 88vw);
   text-align: center;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
-}
-
-#setupBox h1,
-#nextRoundBox h1 {
-  margin: 0 0 12px 0;
-  font-size: 30px;
 }
 
 #setupBox p,
@@ -382,10 +381,6 @@ button {
   font-size: 18px;
 }
 
-.hidden {
-  display: none !important;
-}
-
 @media (max-width: 768px), (pointer: coarse) {
   body {
     padding-top: 4px;
@@ -410,7 +405,9 @@ button {
     border-radius: 14px;
   }
 
-  .instructionPage h1 {
+  .instructionPage h1,
+  #setupBox h1,
+  #nextRoundBox h1 {
     font-size: 24px;
   }
 
