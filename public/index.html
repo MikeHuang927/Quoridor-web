@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Quoridor.web</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="instructionOverlay">
+    <div id="desktopInstruction" class="instructionPage">
+      <h1>電腦版操作說明</h1>
+
+      <div class="manualGrid">
+        <div class="manualCard">
+          <h2>① 移動棋子</h2>
+          <div class="keyDiagram">
+            <div></div>
+            <div class="key">↑</div>
+            <div></div>
+            <div class="key">←</div>
+            <div class="key">↓</div>
+            <div class="key">→</div>
+          </div>
+          <p>輪到你時，使用方向鍵移動棋子。</p>
+        </div>
+
+        <div class="manualCard">
+          <h2>② 放置擋板</h2>
+          <div class="wallDiagram">
+            <div class="wallIcon horizontal"></div>
+            <span>點選自己的擋板</span>
+            <div class="arrowText">→</div>
+            <div class="wallIcon horizontal active"></div>
+          </div>
+          <p>左鍵點選自己的擋板庫存，移到棋盤後再左鍵放下。</p>
+        </div>
+
+        <div class="manualCard">
+          <h2>③ 旋轉擋板</h2>
+          <div class="rotateDiagram">
+            <div class="wallIcon horizontal active"></div>
+            <span class="mouseRight">右鍵</span>
+            <div class="wallIcon vertical active"></div>
+          </div>
+          <p>選取擋板後，按滑鼠右鍵可切換水平 / 垂直。</p>
+        </div>
+
+        <div class="manualCard">
+          <h2>④ 勝利目標</h2>
+          <div class="goalDiagram">
+            <div class="goalLine topGoal">終點</div>
+            <div class="miniBoard">
+              <div class="pawn blue">1</div>
+            </div>
+            <div class="goalLine bottomStart">起點</div>
+          </div>
+          <p>從自己這一側出發，走到對方那一側即可獲勝。</p>
+        </div>
+      </div>
+
+      <div class="startHint">點擊螢幕任意位置開始遊戲</div>
+    </div>
+
+    <div id="touchInstruction" class="instructionPage">
+      <h1>手機 / 平板版操作說明</h1>
+
+      <div class="manualGrid">
+        <div class="manualCard">
+          <h2>① 選取棋子</h2>
+          <div class="touchPawnDiagram">
+            <div class="pawn blue largePawn">1</div>
+            <span>點選自己的棋子</span>
+          </div>
+          <p>點一下自己的棋子後，棋子會被選取。</p>
+        </div>
+
+        <div class="manualCard">
+          <h2>② 預覽移動</h2>
+          <div class="miniMoveBoard">
+            <div></div>
+            <div class="moveCell">可走</div>
+            <div></div>
+            <div class="moveCell">可走</div>
+            <div class="pawn blue">1</div>
+            <div class="moveCell">可走</div>
+            <div></div>
+            <div class="moveCell">可走</div>
+            <div></div>
+          </div>
+          <p>點選棋子四周的格子，棋子會先移動成預覽位置。</p>
+        </div>
+
+        <div class="manualCard">
+          <h2>③ 確認落子</h2>
+          <div class="doubleTapDiagram">
+            <span class="tapCircle">點</span>
+            <span>+</span>
+            <span class="tapCircle">點</span>
+          </div>
+          <p>選好位置後，在螢幕任意地方連點兩下，即可確認落子。</p>
+        </div>
+
+        <div class="manualCard">
+          <h2>④ 放置擋板</h2>
+          <div class="wallTouchDiagram">
+            <div class="wallIcon horizontal active"></div>
+            <span>點選擋板</span>
+            <div class="arrowText">→</div>
+            <div class="wallIcon vertical active"></div>
+          </div>
+          <p>點選自己的擋板庫存後，可用手指拖曳擋板。</p>
+          <p>單點擋板可切換方向；連點兩下任意位置可確認放置。</p>
+        </div>
+
+        <div class="manualCard wideCard">
+          <h2>⑤ 勝利目標</h2>
+          <div class="goalDiagram">
+            <div class="goalLine topGoal">終點</div>
+            <div class="miniBoard">
+              <div class="pawn blue">1</div>
+            </div>
+            <div class="goalLine bottomStart">起點</div>
+          </div>
+          <p>你的棋子會從畫面下方出發，走到畫面上方即可獲勝。</p>
+        </div>
+      </div>
+
+      <div class="startHint">點擊螢幕任意位置開始遊戲</div>
+    </div>
+  </div>
+
+  <div id="app">
+    <div id="infoPanel">
+      <div id="playerInfo"></div>
+      <div id="waitingInfo"></div>
+      <div id="turnInfo"></div>
+      <div id="winnerInfo"></div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="bottomPanel">
+      <button id="undoBtn">返回上一動</button>
+      <button id="restartBtn">重新開始</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
