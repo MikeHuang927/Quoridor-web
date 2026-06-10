@@ -152,9 +152,9 @@ socket.on("playerAssigned", (player) => {
   myPlayer = player;
 
   if (myPlayer === 1) {
-    playerInfo.textContent = "你是玩家 1：方向鍵移動；手機/平板可觸控棋子移動";
+    playerInfo.textContent = "你是玩家 1：方向鍵移動；第一步可左右選擇出發行";
   } else if (myPlayer === 2) {
-    playerInfo.textContent = "你是玩家 2：方向鍵移動；手機/平板可觸控棋子移動";
+    playerInfo.textContent = "你是玩家 2：方向鍵移動；第一步可左右選擇出發行";
   } else {
     playerInfo.textContent = "你是觀戰者";
   }
@@ -1052,10 +1052,21 @@ function canMoveToClient(pid, row, col) {
   if (col < 0 || col >= BOARD_SIZE) return false;
   if (row < OUTSIDE_TOP || row > OUTSIDE_BOTTOM) return false;
 
-  if (row === OUTSIDE_TOP && pid !== 1) return false;
-  if (row === OUTSIDE_BOTTOM && pid !== 2) return false;
+  if (row === OUTSIDE_TOP && pid !== 1 && r !== OUTSIDE_TOP) return false;
+  if (row === OUTSIDE_BOTTOM && pid !== 2 && r !== OUTSIDE_BOTTOM) return false;
 
   if (row === opponent.pos.r && col === opponent.pos.c) return false;
+
+  const startOutsideRow = pid === 1 ? OUTSIDE_BOTTOM : OUTSIDE_TOP;
+
+  const isOutsideStartSideMove =
+    r === startOutsideRow &&
+    row === startOutsideRow &&
+    Math.abs(c - col) === 1;
+
+  if (isOutsideStartSideMove) {
+    return true;
+  }
 
   const isInitialEntry =
     (pid === 1 && r === OUTSIDE_BOTTOM && row === BOARD_SIZE - 1) ||
@@ -1176,6 +1187,10 @@ function validNeighborFromClient(current, nr, nc) {
   if (nr >= 0 && nr < BOARD_SIZE) return true;
 
   if (nr === OUTSIDE_TOP || nr === OUTSIDE_BOTTOM) {
+    if (current.r === nr && Math.abs(current.c - nc) === 1) {
+      return true;
+    }
+
     return nc === current.c;
   }
 
