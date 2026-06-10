@@ -43,9 +43,7 @@ function closeInstructionOverlay() {
   touchInstruction.style.display = "none";
 
   setTimeout(() => {
-    if (typeof draw === "function") {
-      draw();
-    }
+    if (typeof draw === "function") draw();
   }, 50);
 }
 
@@ -152,11 +150,11 @@ socket.on("playerAssigned", (player) => {
   myPlayer = player;
 
   if (myPlayer === 1) {
-    playerInfo.textContent = "你是玩家 1：方向鍵移動；第一步可左右選擇出發行";
+    playerInfo.textContent = "你：玩家 1";
   } else if (myPlayer === 2) {
-    playerInfo.textContent = "你是玩家 2：方向鍵移動；第一步可左右選擇出發行";
+    playerInfo.textContent = "你：玩家 2";
   } else {
-    playerInfo.textContent = "你是觀戰者";
+    playerInfo.textContent = "你：觀戰者";
   }
 
   draw();
@@ -170,7 +168,7 @@ socket.on("gameState", (state) => {
 });
 
 socket.on("playerDisconnected", () => {
-  waitingInfo.textContent = "有玩家離線，等待玩家重新加入。";
+  waitingInfo.textContent = "有玩家離線";
 });
 
 undoBtn.addEventListener("click", () => {
@@ -356,6 +354,7 @@ function handleMouseCanvasAction(x, y) {
   if (inventoryPlayer) {
     if (inventoryPlayer !== myPlayer) return;
     if (gameState.players[myPlayer].walls <= 0) return;
+    if (isPlayerAtOwnStartOutside(myPlayer)) return;
 
     if (selectedWall) {
       clearLocalSelections();
@@ -1023,7 +1022,12 @@ function getMoveFromTappedCell(targetR, targetC) {
     (myPlayer === 1 && current.r === OUTSIDE_BOTTOM && targetR === BOARD_SIZE - 1) ||
     (myPlayer === 2 && current.r === OUTSIDE_TOP && targetR === 0);
 
-  if (!isInitialEntry) {
+  const isOutsideSideMove =
+    isPlayerAtOwnStartOutside(myPlayer) &&
+    targetR === current.r &&
+    Math.abs(targetC - current.c) === 1;
+
+  if (!isInitialEntry && !isOutsideSideMove) {
     const dr = targetR - current.r;
     const dc = targetC - current.c;
 
@@ -1040,6 +1044,17 @@ function getMoveFromTappedCell(targetR, targetC) {
     targetR,
     targetC
   };
+}
+
+function isPlayerAtOwnStartOutside(pid) {
+  if (!gameState || !pid) return false;
+
+  const row = gameState.players[pid].pos.r;
+
+  if (pid === 1) return row === OUTSIDE_BOTTOM;
+  if (pid === 2) return row === OUTSIDE_TOP;
+
+  return false;
 }
 
 function canMoveToClient(pid, row, col) {
@@ -1238,6 +1253,8 @@ function hasPathClient(playerNum, horizontalWalls, verticalWalls) {
 function canPlaceWallClient(orientation, r, c) {
   if (!gameState) return false;
 
+  if (isPlayerAtOwnStartOutside(myPlayer)) return false;
+
   if (c < 0 || c > BOARD_SIZE - 2) return false;
 
   if (orientation === "H") {
@@ -1272,17 +1289,17 @@ function drawInfo() {
   const p2Connected = gameState.players[2].connected;
 
   if (!myPlayer) {
-    waitingInfo.textContent = "目前你是觀戰者，等待有玩家位置空出。";
+    waitingInfo.textContent = "觀戰中";
   } else if (!p1Connected || !p2Connected) {
-    waitingInfo.textContent = "等待第二位玩家加入。";
+    waitingInfo.textContent = "等待玩家";
   } else {
     waitingInfo.textContent = "";
   }
 
-  turnInfo.textContent = `目前回合：玩家 ${gameState.currentPlayer}`;
+  turnInfo.textContent = `回合：玩家 ${gameState.currentPlayer}`;
 
   if (gameState.gameOver) {
-    winnerInfo.textContent = `玩家 ${gameState.winner} 獲勝！`;
+    winnerInfo.textContent = `玩家 ${gameState.winner} 獲勝`;
   } else {
     winnerInfo.textContent = "";
   }
