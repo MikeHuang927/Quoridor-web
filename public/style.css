@@ -69,11 +69,8 @@ button {
   cursor: pointer;
 }
 
-/* ===================== */
-/* 說明書覆蓋畫面 */
-/* ===================== */
-
-#instructionOverlay {
+#instructionOverlay,
+#nextRoundOverlay {
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -81,10 +78,14 @@ button {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+#instructionOverlay {
   cursor: pointer;
 }
 
-#instructionOverlay.hidden {
+#instructionOverlay.hidden,
+#nextRoundOverlay.hidden {
   display: none !important;
 }
 
@@ -313,6 +314,39 @@ button {
   display: none;
 }
 
+#nextRoundBox {
+  background: white;
+  border: 2px solid #222;
+  border-radius: 18px;
+  padding: 28px;
+  width: min(460px, 88vw);
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+#nextRoundBox h1 {
+  margin: 0 0 12px 0;
+  font-size: 30px;
+}
+
+#nextRoundBox p {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+#nextRoundButtons {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+#nextRoundButtons button {
+  width: 150px;
+  height: 46px;
+  border-radius: 999px;
+}
+
 @media (max-width: 768px), (pointer: coarse) {
   body {
     padding-top: 4px;
@@ -362,5 +396,14 @@ button {
 
   .wideCard {
     grid-column: auto;
+  }
+
+  #nextRoundButtons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #nextRoundButtons button {
+    width: 190px;
   }
 }
