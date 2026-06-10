@@ -541,13 +541,33 @@ function handleTouchPawnTap(x, y) {
     return;
   }
 
-  if (selectedPawn && tappedPawn && !pendingPawnMove) {
+  if (selectedPawn && !pendingPawnMove && tappedPawn) {
     clearLocalSelections();
     draw();
     return;
   }
 
   if (selectedPawn && pendingPawnMove) {
+    const current = gameState.players[myPlayer].pos;
+
+    const tappedOriginalCell =
+      tappedCell &&
+      tappedCell.logicalR === current.r &&
+      tappedCell.logicalC === current.c;
+
+    if (tappedPawn) {
+      clearLocalSelections();
+      draw();
+      return;
+    }
+
+    if (tappedOriginalCell) {
+      pendingPawnMove = null;
+      recordTap("pawn");
+      draw();
+      return;
+    }
+
     const tappedValidCell = tappedCell
       ? getMoveFromTappedCell(tappedCell.logicalR, tappedCell.logicalC)
       : null;
