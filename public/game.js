@@ -892,12 +892,28 @@ function drawWallInventory() {
   }
 }
 
+function drawRoundedRect(x, y, w, h, radius) {
+  const r = Math.min(radius, w / 2, h / 2);
+
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
 function drawTimersOnCanvas() {
-  if (!gameState || gameState.mode !== "timed") return;
+  if (!gameState) return;
+  if (gameState.mode !== "timed") return;
 
   for (const pid of [1, 2]) {
     const isBottom = isBottomInventory(pid);
-    const inventoryY = getInventoryY(pid);
 
     let y;
 
@@ -907,30 +923,28 @@ function drawTimersOnCanvas() {
       y = MARGIN_Y - 34;
     }
 
-    const x = MARGIN_X + 4;
+    const x = MARGIN_X + 6;
+    const w = 128;
+    const h = 34;
+    const boxY = y - h / 2;
+
     const text = `P${pid} ${formatTime(gameState.timers[pid])}`;
     const color = pid === 1 ? colors.p1 : colors.p2;
     const active = gameState.started && !gameState.gameOver && gameState.currentPlayer === pid;
 
     ctx.save();
 
-    ctx.font = active ? "bold 22px Arial" : "bold 19px Arial";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-
-    ctx.lineWidth = active ? 5 : 3;
-    ctx.strokeStyle = active ? color : "#777";
     ctx.fillStyle = "white";
+    ctx.strokeStyle = active ? color : "#777";
+    ctx.lineWidth = active ? 5 : 3;
 
-    const width = 118;
-    const height = 34;
-    const boxY = y - height / 2;
-
-    ctx.beginPath();
-    ctx.roundRect(x, boxY, width, height, 8);
+    drawRoundedRect(x, boxY, w, h, 8);
     ctx.fill();
     ctx.stroke();
 
+    ctx.font = active ? "bold 22px Arial" : "bold 19px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
     ctx.fillStyle = color;
     ctx.fillText(text, x + 10, y + 1);
 
@@ -967,7 +981,7 @@ function drawPlayers() {
       selectedPawn &&
       pendingPawnMove &&
       pid === myPlayer &&
-      myPlayer === gameState.currentPlayer;
+      pid === gameState.currentPlayer;
 
     if (isLocalPendingPawn) {
       logicalR = pendingPawnMove.targetR;
@@ -1479,8 +1493,10 @@ function drawInfo() {
 
   if (!gameState.started) {
     turnInfo.textContent = "尚未開始";
+  } else if (gameState.mode === "timed") {
+    turnInfo.textContent = `計時模式｜回合：玩家 ${gameState.currentPlayer}`;
   } else {
-    turnInfo.textContent = `回合：玩家 ${gameState.currentPlayer}`;
+    turnInfo.textContent = `一般模式｜回合：玩家 ${gameState.currentPlayer}`;
   }
 
   if (gameState.gameOver) {
