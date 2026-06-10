@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Quoridor</title>
+  <title>9x9 擋板棋網頁對弈</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -23,7 +23,7 @@
             <div class="key">→</div>
           </div>
           <p>方向鍵移動。</p>
-          <p>開局可先用 ← → 選出發位置，再按 ↑ 進場。</p>
+          <p>開局用 ← → 選出發位置，按 ↑ 進場。</p>
         </div>
 
         <div class="manualCard">
@@ -68,43 +68,27 @@
 
       <div class="manualGrid">
         <div class="manualCard">
-          <h2>① 選棋子</h2>
+          <h2>① 棋子</h2>
           <div class="touchPawnDiagram">
             <div class="pawn blue largePawn">1</div>
             <span>點選棋子</span>
           </div>
-          <p>先點自己的棋子。</p>
-          <p>開局可點起始列任一格進場。</p>
+          <p>點棋子選取，再點格子移動。</p>
+          <p>再點一次棋子可取消。</p>
         </div>
 
         <div class="manualCard">
-          <h2>② 選位置</h2>
-          <div class="miniMoveBoard">
-            <div></div>
-            <div class="moveCell">可走</div>
-            <div></div>
-            <div class="moveCell">可走</div>
-            <div class="pawn blue">1</div>
-            <div class="moveCell">可走</div>
-            <div></div>
-            <div class="moveCell">可走</div>
-            <div></div>
-          </div>
-          <p>點可移動格，棋子先預覽位置。</p>
-        </div>
-
-        <div class="manualCard">
-          <h2>③ 確認</h2>
+          <h2>② 確認</h2>
           <div class="doubleTapDiagram">
             <span class="tapCircle">點</span>
             <span>+</span>
             <span class="tapCircle">點</span>
           </div>
-          <p>選好後，任意位置連點兩下確認。</p>
+          <p>選好位置後，任意處連點兩下確認。</p>
         </div>
 
         <div class="manualCard">
-          <h2>④ 擋板</h2>
+          <h2>③ 擋板</h2>
           <div class="wallTouchDiagram">
             <div class="wallIcon horizontal active"></div>
             <span>拖曳</span>
@@ -113,6 +97,12 @@
           </div>
           <p>點擋板區域後拖曳定位。</p>
           <p>單點旋轉，連點兩下確認。</p>
+        </div>
+
+        <div class="manualCard">
+          <h2>④ 計時</h2>
+          <div class="timerExample">10:00</div>
+          <p>計時模式中，時間歸零就輸。</p>
         </div>
 
         <div class="manualCard wideCard">
@@ -132,6 +122,26 @@
     </div>
   </div>
 
+  <div id="setupOverlay">
+    <div id="setupBox">
+      <h1>選擇模式</h1>
+      <p id="setupMessage">玩家 1 設定模式後開始遊戲</p>
+
+      <div id="modeButtons">
+        <button id="normalModeBtn" class="selectedMode">一般模式</button>
+        <button id="timedModeBtn">計時模式</button>
+      </div>
+
+      <div id="timerSetting" class="hidden">
+        <label for="timerMinutesInput">每人時間：</label>
+        <input id="timerMinutesInput" type="number" min="5" max="60" value="10" />
+        <span>分鐘</span>
+      </div>
+
+      <button id="startGameBtn">開始遊戲</button>
+    </div>
+  </div>
+
   <div id="nextRoundOverlay" class="hidden">
     <div id="nextRoundBox">
       <h1>你獲勝了！</h1>
@@ -146,8 +156,9 @@
   <div id="app">
     <div id="infoPanel">
       <div id="playerInfo"></div>
-      <div id="waitingInfo"></div>
+      <div id="timerInfo"></div>
       <div id="turnInfo"></div>
+      <div id="waitingInfo"></div>
       <div id="winnerInfo"></div>
     </div>
 
