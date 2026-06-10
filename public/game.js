@@ -218,7 +218,7 @@ startGameBtn.addEventListener("click", () => {
 
   let minutes = Number(timerMinutesInput.value);
   if (!Number.isFinite(minutes)) minutes = 10;
-  minutes = Math.max(5, Math.min(60, Math.round(minutes)));
+  minutes = Math.max(1, Math.min(60, Math.round(minutes)));
   timerMinutesInput.value = minutes;
 
   socket.emit("startGame", {
