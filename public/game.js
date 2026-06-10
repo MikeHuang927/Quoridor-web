@@ -7,7 +7,6 @@ const undoBtn = document.getElementById("undoBtn");
 const restartBtn = document.getElementById("restartBtn");
 
 const playerInfo = document.getElementById("playerInfo");
-const timerInfo = document.getElementById("timerInfo");
 const waitingInfo = document.getElementById("waitingInfo");
 const turnInfo = document.getElementById("turnInfo");
 const winnerInfo = document.getElementById("winnerInfo");
@@ -53,7 +52,11 @@ function closeInstructionOverlay() {
   touchInstruction.style.display = "none";
 
   setTimeout(() => {
-    if (typeof draw === "function") draw();
+    updateSetupOverlay();
+
+    if (typeof draw === "function") {
+      draw();
+    }
   }, 50);
 }
 
@@ -381,6 +384,11 @@ canvas.addEventListener("touchend", (e) => {
 function updateSetupOverlay() {
   if (!gameState || !setupOverlay) return;
 
+  if (!instructionClosed) {
+    setupOverlay.classList.add("hidden");
+    return;
+  }
+
   if (gameState.started) {
     setupOverlay.classList.add("hidden");
     return;
@@ -389,10 +397,10 @@ function updateSetupOverlay() {
   setupOverlay.classList.remove("hidden");
 
   if (myPlayer === 1) {
-    setupMessage.textContent = "請選擇模式";
+    setupMessage.textContent = "請選擇遊戲模式";
     startGameBtn.disabled = false;
   } else if (myPlayer === 2) {
-    setupMessage.textContent = "等待玩家 1 設定";
+    setupMessage.textContent = "等待玩家 1 選擇模式";
     startGameBtn.disabled = true;
   } else {
     setupMessage.textContent = "觀戰中，等待開始";
@@ -834,6 +842,7 @@ function draw() {
   if (gameState) {
     drawPlacedWalls();
     drawPlayers();
+    drawTimersOnCanvas();
     drawPreviewWall();
     drawInfo();
   }
@@ -880,6 +889,52 @@ function drawWallInventory() {
       ctx.fillRect(x, y, INV_WALL_WIDTH, INV_WALL_HEIGHT);
       ctx.strokeRect(x, y, INV_WALL_WIDTH, INV_WALL_HEIGHT);
     }
+  }
+}
+
+function drawTimersOnCanvas() {
+  if (!gameState || gameState.mode !== "timed") return;
+
+  for (const pid of [1, 2]) {
+    const isBottom = isBottomInventory(pid);
+    const inventoryY = getInventoryY(pid);
+
+    let y;
+
+    if (isBottom) {
+      y = MARGIN_Y + BOARD_SIZE * CELL + 34;
+    } else {
+      y = MARGIN_Y - 34;
+    }
+
+    const x = MARGIN_X + 4;
+    const text = `P${pid} ${formatTime(gameState.timers[pid])}`;
+    const color = pid === 1 ? colors.p1 : colors.p2;
+    const active = gameState.started && !gameState.gameOver && gameState.currentPlayer === pid;
+
+    ctx.save();
+
+    ctx.font = active ? "bold 22px Arial" : "bold 19px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    ctx.lineWidth = active ? 5 : 3;
+    ctx.strokeStyle = active ? color : "#777";
+    ctx.fillStyle = "white";
+
+    const width = 118;
+    const height = 34;
+    const boxY = y - height / 2;
+
+    ctx.beginPath();
+    ctx.roundRect(x, boxY, width, height, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.fillText(text, x + 10, y + 1);
+
+    ctx.restore();
   }
 }
 
@@ -1080,7 +1135,7 @@ function getDisplayedPawnPosition(pid) {
     selectedPawn &&
     pendingPawnMove &&
     pid === myPlayer &&
-    myPlayer === gameState.currentPlayer
+    pid === gameState.currentPlayer
   ) {
     logicalR = pendingPawnMove.targetR;
     logicalC = pendingPawnMove.targetC;
@@ -1426,13 +1481,6 @@ function drawInfo() {
     turnInfo.textContent = "尚未開始";
   } else {
     turnInfo.textContent = `回合：玩家 ${gameState.currentPlayer}`;
-  }
-
-  if (gameState.mode === "timed") {
-    timerInfo.textContent =
-      `P1 ${formatTime(gameState.timers[1])}｜P2 ${formatTime(gameState.timers[2])}`;
-  } else {
-    timerInfo.textContent = "一般模式";
   }
 
   if (gameState.gameOver) {
