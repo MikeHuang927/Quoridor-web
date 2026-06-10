@@ -433,7 +433,7 @@ io.on("connection", socket => {
     let timerMinutes = Number(data && data.timerMinutes);
 
     if (!Number.isFinite(timerMinutes)) timerMinutes = 10;
-    timerMinutes = Math.max(5, Math.min(60, Math.round(timerMinutes)));
+    timerMinutes = Math.max(1, Math.min(60, Math.round(timerMinutes)));
 
     const oldPlayer1 = game.players[1].id;
     const oldPlayer2 = game.players[2].id;
