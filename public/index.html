@@ -74,7 +74,7 @@
             <span>點選棋子</span>
           </div>
           <p>點棋子選取，再點格子移動。</p>
-          <p>再點一次棋子可取消。</p>
+          <p>未選位置時，再點棋子可取消。</p>
         </div>
 
         <div class="manualCard">
@@ -155,10 +155,12 @@
 
   <div id="app">
     <div id="infoPanel">
+      <div id="timerP1" class="topTimer p1Timer hidden">P1 0:00</div>
       <div id="playerInfo"></div>
       <div id="turnInfo"></div>
       <div id="waitingInfo"></div>
       <div id="winnerInfo"></div>
+      <div id="timerP2" class="topTimer p2Timer hidden">P2 0:00</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
