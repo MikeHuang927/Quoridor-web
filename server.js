@@ -13,9 +13,9 @@ const BOARD_SIZE = 9;
 const OUTSIDE_TOP = -1;
 const OUTSIDE_BOTTOM = BOARD_SIZE;
 
-let game = createNewGame();
+let game = createNewGame(1);
 
-function createNewGame() {
+function createNewGame(startPlayer = 1) {
   return {
     players: {
       1: {
@@ -31,7 +31,7 @@ function createNewGame() {
         walls: 10
       }
     },
-    currentPlayer: 1,
+    currentPlayer: startPlayer,
     horizontalWalls: [],
     verticalWalls: [],
     history: [],
@@ -70,39 +70,33 @@ function getPlayerNumber(socketId) {
   return null;
 }
 
+function getOpponent(playerNumber) {
+  return playerNumber === 1 ? 2 : 1;
+}
+
 function wallExists(list, r, c) {
   return list.some(w => w.r === r && w.c === c);
 }
 
 function wallSegments(orientation, r, c) {
   if (orientation === "H") {
-    return [
-      `H-${r}-${c}`,
-      `H-${r}-${c + 1}`
-    ];
+    return [`H-${r}-${c}`, `H-${r}-${c + 1}`];
   }
 
-  return [
-    `V-${r}-${c}`,
-    `V-${r + 1}-${c}`
-  ];
+  return [`V-${r}-${c}`, `V-${r + 1}-${c}`];
 }
 
 function isWallConflict(orientation, r, c) {
   const newSegments = new Set(wallSegments(orientation, r, c));
 
   for (const w of game.horizontalWalls) {
-    const oldSegments = wallSegments("H", w.r, w.c);
-
-    for (const seg of oldSegments) {
+    for (const seg of wallSegments("H", w.r, w.c)) {
       if (newSegments.has(seg)) return true;
     }
   }
 
   for (const w of game.verticalWalls) {
-    const oldSegments = wallSegments("V", w.r, w.c);
-
-    for (const seg of oldSegments) {
+    for (const seg of wallSegments("V", w.r, w.c)) {
       if (newSegments.has(seg)) return true;
     }
   }
@@ -125,15 +119,15 @@ function isWallConflict(orientation, r, c) {
 function isBlocked(r1, c1, r2, c2) {
   if (r2 === r1 - 1) {
     return (
-      wallExists(game.horizontalWalls, r2, c1) ||
-      wallExists(game.horizontalWalls, r2, c1 - 1)
+      wallExists(game.horizontalWalls, r2, c2) ||
+      wallExists(game.horizontalWalls, r2, c2 - 1)
     );
   }
 
   if (r2 === r1 + 1) {
     return (
-      wallExists(game.horizontalWalls, r1, c1) ||
-      wallExists(game.horizontalWalls, r1, c1 - 1)
+      wallExists(game.horizontalWalls, r1, c2) ||
+      wallExists(game.horizontalWalls, r1, c2 - 1)
     );
   }
 
@@ -215,36 +209,38 @@ function bothPlayersHavePath() {
   return hasPath(1) && hasPath(2);
 }
 
+function isInitialEntryMove(playerNumber, current, row, col) {
+  if (playerNumber === 1) {
+    return current.r === OUTSIDE_BOTTOM && row === BOARD_SIZE - 1 && col >= 0 && col < BOARD_SIZE;
+  }
+
+  if (playerNumber === 2) {
+    return current.r === OUTSIDE_TOP && row === 0 && col >= 0 && col < BOARD_SIZE;
+  }
+
+  return false;
+}
+
 function canMoveTo(playerNumber, row, col) {
   const player = game.players[playerNumber];
-  const opponent = game.players[playerNumber === 1 ? 2 : 1];
+  const opponent = game.players[getOpponent(playerNumber)];
 
   const r = player.pos.r;
   const c = player.pos.c;
 
-  if (col < 0 || col >= BOARD_SIZE) {
-    return false;
+  if (col < 0 || col >= BOARD_SIZE) return false;
+  if (row < OUTSIDE_TOP || row > OUTSIDE_BOTTOM) return false;
+
+  if (row === OUTSIDE_TOP && playerNumber !== 1) return false;
+  if (row === OUTSIDE_BOTTOM && playerNumber !== 2) return false;
+
+  if (row === opponent.pos.r && col === opponent.pos.c) return false;
+
+  if (isInitialEntryMove(playerNumber, player.pos, row, col)) {
+    return !isBlocked(r, c, row, col);
   }
 
-  if (row < OUTSIDE_TOP || row > OUTSIDE_BOTTOM) {
-    return false;
-  }
-
-  if (row === OUTSIDE_TOP && playerNumber !== 1) {
-    return false;
-  }
-
-  if (row === OUTSIDE_BOTTOM && playerNumber !== 2) {
-    return false;
-  }
-
-  if (row === opponent.pos.r && col === opponent.pos.c) {
-    return false;
-  }
-
-  if (Math.abs(r - row) + Math.abs(c - col) !== 1) {
-    return false;
-  }
+  if (Math.abs(r - row) + Math.abs(c - col) !== 1) return false;
 
   if (r === OUTSIDE_TOP || r === OUTSIDE_BOTTOM) {
     if (col !== c) return false;
@@ -264,9 +260,7 @@ function canPlaceWall(orientation, r, c) {
     return false;
   }
 
-  if (isWallConflict(orientation, r, c)) {
-    return false;
-  }
+  if (isWallConflict(orientation, r, c)) return false;
 
   if (orientation === "H") {
     game.horizontalWalls.push({ r, c, owner: game.currentPlayer });
@@ -275,14 +269,10 @@ function canPlaceWall(orientation, r, c) {
     return valid;
   }
 
-  if (orientation === "V") {
-    game.verticalWalls.push({ r, c, owner: game.currentPlayer });
-    const valid = bothPlayersHavePath();
-    game.verticalWalls.pop();
-    return valid;
-  }
-
-  return false;
+  game.verticalWalls.push({ r, c, owner: game.currentPlayer });
+  const valid = bothPlayersHavePath();
+  game.verticalWalls.pop();
+  return valid;
 }
 
 function publicGameState() {
@@ -311,6 +301,18 @@ function broadcastGame() {
   io.emit("gameState", publicGameState());
 }
 
+function resetGameKeepingPlayers(startPlayer) {
+  const oldPlayer1 = game.players[1].id;
+  const oldPlayer2 = game.players[2].id;
+
+  game = createNewGame(startPlayer);
+
+  game.players[1].id = oldPlayer1;
+  game.players[2].id = oldPlayer2;
+
+  broadcastGame();
+}
+
 io.on("connection", socket => {
   let assignedPlayer = null;
 
@@ -332,11 +334,19 @@ io.on("connection", socket => {
     if (game.gameOver) return;
     if (playerNumber !== game.currentPlayer) return;
 
-    const { dr, dc } = data;
-
     const current = game.players[playerNumber].pos;
-    const nr = current.r + dr;
-    const nc = current.c + dc;
+
+    let nr;
+    let nc;
+
+    if (typeof data.targetR === "number" && typeof data.targetC === "number") {
+      nr = data.targetR;
+      nc = data.targetC;
+    } else {
+      const { dr, dc } = data;
+      nr = current.r + dr;
+      nc = current.c + dc;
+    }
 
     if (!canMoveTo(playerNumber, nr, nc)) return;
 
@@ -351,7 +361,7 @@ io.on("connection", socket => {
       return;
     }
 
-    game.currentPlayer = game.currentPlayer === 1 ? 2 : 1;
+    game.currentPlayer = getOpponent(game.currentPlayer);
     broadcastGame();
   });
 
@@ -376,9 +386,22 @@ io.on("connection", socket => {
     }
 
     game.players[playerNumber].walls -= 1;
-    game.currentPlayer = game.currentPlayer === 1 ? 2 : 1;
+    game.currentPlayer = getOpponent(game.currentPlayer);
 
     broadcastGame();
+  });
+
+  socket.on("nextRoundChoice", data => {
+    const playerNumber = getPlayerNumber(socket.id);
+
+    if (!playerNumber) return;
+    if (!game.gameOver) return;
+    if (playerNumber !== game.winner) return;
+
+    const choice = data && data.choice;
+    const startPlayer = choice === "second" ? getOpponent(playerNumber) : playerNumber;
+
+    resetGameKeepingPlayers(startPlayer);
   });
 
   socket.on("undo", () => {
@@ -398,15 +421,7 @@ io.on("connection", socket => {
 
     if (!playerNumber) return;
 
-    const oldPlayer1 = game.players[1].id;
-    const oldPlayer2 = game.players[2].id;
-
-    game = createNewGame();
-
-    game.players[1].id = oldPlayer1;
-    game.players[2].id = oldPlayer2;
-
-    broadcastGame();
+    resetGameKeepingPlayers(1);
   });
 
   socket.on("disconnect", () => {
@@ -444,11 +459,9 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}.`);
   console.log(`本機測試網址：http://localhost:${PORT}`);
 
-  if (typeof getLocalIPAddresses === "function") {
-    const addresses = getLocalIPAddresses();
+  const addresses = getLocalIPAddresses();
 
-    for (const ip of addresses) {
-      console.log(`區域網路連線網址：http://${ip}:${PORT}`);
-    }
+  for (const ip of addresses) {
+    console.log(`區域網路連線網址：http://${ip}:${PORT}`);
   }
 });
