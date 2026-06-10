@@ -37,6 +37,7 @@ body {
 }
 
 #playerInfo,
+#timerInfo,
 #waitingInfo,
 #turnInfo,
 #winnerInfo {
@@ -50,6 +51,10 @@ body {
 
 #winnerInfo {
   color: green;
+}
+
+#timerInfo {
+  color: #222;
 }
 
 #gameCanvas {
@@ -76,6 +81,7 @@ button {
 }
 
 #instructionOverlay,
+#setupOverlay,
 #nextRoundOverlay {
   position: fixed;
   inset: 0;
@@ -88,9 +94,11 @@ button {
 
 #instructionOverlay {
   cursor: pointer;
+  z-index: 10001;
 }
 
 #instructionOverlay.hidden,
+#setupOverlay.hidden,
 #nextRoundOverlay.hidden {
   display: none !important;
 }
@@ -279,28 +287,16 @@ button {
   font-size: 24px;
 }
 
-.miniMoveBoard {
-  display: grid;
-  grid-template-columns: 58px 58px 58px;
-  grid-template-rows: 58px 58px 58px;
-  gap: 4px;
-  justify-content: center;
-  align-items: center;
-}
-
-.miniMoveBoard > div {
-  width: 58px;
-  height: 58px;
-  border: 1px solid #999;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.moveCell {
-  background: #fff3c4;
-  font-weight: bold;
-  font-size: 14px;
+.timerExample {
+  font-size: 38px;
+  font-weight: 900;
+  text-align: center;
+  border: 3px solid #222;
+  border-radius: 10px;
+  padding: 10px;
+  width: 150px;
+  margin: 10px auto;
+  background: #eee;
 }
 
 .tapCircle {
@@ -320,6 +316,7 @@ button {
   display: none;
 }
 
+#setupBox,
 #nextRoundBox {
   background: white;
   border: 2px solid #222;
@@ -330,27 +327,63 @@ button {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
 }
 
+#setupBox h1,
 #nextRoundBox h1 {
   margin: 0 0 12px 0;
   font-size: 30px;
 }
 
+#setupBox p,
 #nextRoundBox p {
   font-size: 18px;
   font-weight: bold;
 }
 
+#modeButtons,
 #nextRoundButtons {
   display: flex;
   justify-content: center;
   gap: 14px;
   margin-top: 20px;
+  flex-wrap: wrap;
 }
 
+#modeButtons button,
 #nextRoundButtons button {
   width: 150px;
   height: 46px;
   border-radius: 999px;
+}
+
+.selectedMode {
+  background: #222;
+  color: white;
+}
+
+#timerSetting {
+  margin-top: 18px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+#timerMinutesInput {
+  width: 70px;
+  height: 32px;
+  font-size: 18px;
+  text-align: center;
+  font-weight: bold;
+}
+
+#startGameBtn {
+  margin-top: 24px;
+  width: 180px;
+  height: 46px;
+  border-radius: 999px;
+  font-size: 18px;
+}
+
+.hidden {
+  display: none !important;
 }
 
 @media (max-width: 768px), (pointer: coarse) {
@@ -405,11 +438,13 @@ button {
     grid-column: auto;
   }
 
+  #modeButtons,
   #nextRoundButtons {
     flex-direction: column;
     align-items: center;
   }
 
+  #modeButtons button,
   #nextRoundButtons button {
     width: 190px;
   }
