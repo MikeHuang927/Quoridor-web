@@ -368,6 +368,7 @@ canvas.addEventListener("touchmove", (e) => {
 
 canvas.addEventListener("touchend", (e) => {
   e.preventDefault();
+  e.stopPropagation();
 
   ignoreMouseClickUntil = Date.now() + 500;
 
@@ -392,6 +393,66 @@ canvas.addEventListener("touchend", (e) => {
 
   handleTouchTap(x, y);
 }, { passive: false });
+
+document.addEventListener("touchend", (e) => {
+  if (e.target === canvas) return;
+  if (!gameState) return;
+  if (!gameState.started) return;
+  if (gameState.gameOver) return;
+  if (myPlayer !== gameState.currentPlayer) return;
+
+  if (!selectedWall && !(selectedPawn && pendingPawnMove)) return;
+  if (isAnyOverlayOpen()) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  handleGlobalDoubleTapConfirm();
+}, { passive: false });
+
+function isAnyOverlayOpen() {
+  const instructionOpen = instructionOverlay && !instructionOverlay.classList.contains("hidden");
+  const setupOpen = setupOverlay && !setupOverlay.classList.contains("hidden");
+  const nextRoundOpen = nextRoundOverlay && !nextRoundOverlay.classList.contains("hidden");
+
+  return instructionOpen || setupOpen || nextRoundOpen;
+}
+
+function handleGlobalDoubleTapConfirm() {
+  if (selectedPawn && pendingPawnMove) {
+    if (isDoubleTap("pawnConfirm")) {
+      socket.emit("move", {
+        targetR: pendingPawnMove.targetR,
+        targetC: pendingPawnMove.targetC
+      });
+
+      clearLocalSelections();
+      return;
+    }
+
+    recordTap("pawnConfirm");
+    draw();
+    return;
+  }
+
+  if (selectedWall && previewWall) {
+    clearPendingWallRotate();
+
+    const now = Date.now();
+
+    if (now - lastWallFreeTapTime <= DOUBLE_TAP_TIME) {
+      lastWallFreeTapTime = 0;
+
+      if (tryConfirmWallPlacement()) return;
+
+      draw();
+      return;
+    }
+
+    lastWallFreeTapTime = now;
+    draw();
+  }
+}
 
 function updateSetupOverlay() {
   if (!gameState || !setupOverlay) return;
