@@ -74,6 +74,10 @@ function getOpponent(playerNumber) {
   return playerNumber === 1 ? 2 : 1;
 }
 
+function getStartOutsideRow(playerNumber) {
+  return playerNumber === 1 ? OUTSIDE_BOTTOM : OUTSIDE_TOP;
+}
+
 function wallExists(list, r, c) {
   return list.some(w => w.r === r && w.c === c);
 }
@@ -158,6 +162,10 @@ function validNeighborFrom(current, nr, nc) {
   if (nr >= 0 && nr < BOARD_SIZE) return true;
 
   if (nr === OUTSIDE_TOP || nr === OUTSIDE_BOTTOM) {
+    if (current.r === nr && Math.abs(current.c - nc) === 1) {
+      return true;
+    }
+
     return nc === current.c;
   }
 
@@ -221,6 +229,18 @@ function isInitialEntryMove(playerNumber, current, row, col) {
   return false;
 }
 
+function isOutsideStartSideMove(playerNumber, current, row, col) {
+  const startOutsideRow = getStartOutsideRow(playerNumber);
+
+  return (
+    current.r === startOutsideRow &&
+    row === startOutsideRow &&
+    col >= 0 &&
+    col < BOARD_SIZE &&
+    Math.abs(current.c - col) === 1
+  );
+}
+
 function canMoveTo(playerNumber, row, col) {
   const player = game.players[playerNumber];
   const opponent = game.players[getOpponent(playerNumber)];
@@ -231,10 +251,14 @@ function canMoveTo(playerNumber, row, col) {
   if (col < 0 || col >= BOARD_SIZE) return false;
   if (row < OUTSIDE_TOP || row > OUTSIDE_BOTTOM) return false;
 
-  if (row === OUTSIDE_TOP && playerNumber !== 1) return false;
-  if (row === OUTSIDE_BOTTOM && playerNumber !== 2) return false;
+  if (row === OUTSIDE_TOP && playerNumber !== 1 && r !== OUTSIDE_TOP) return false;
+  if (row === OUTSIDE_BOTTOM && playerNumber !== 2 && r !== OUTSIDE_BOTTOM) return false;
 
   if (row === opponent.pos.r && col === opponent.pos.c) return false;
+
+  if (isOutsideStartSideMove(playerNumber, player.pos, row, col)) {
+    return true;
+  }
 
   if (isInitialEntryMove(playerNumber, player.pos, row, col)) {
     return !isBlocked(r, c, row, col);
