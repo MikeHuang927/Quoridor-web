@@ -19,8 +19,6 @@ let game = createNewGame(1, {
   timerMinutes: 10
 });
 
-let timerInterval = null;
-
 function createNewGame(startPlayer = 1, options = {}) {
   const timerMinutes = options.timerMinutes || 10;
   const timerMs = timerMinutes * 60 * 1000;
@@ -156,13 +154,17 @@ function isWallConflict(orientation, r, c) {
 
 function isBlocked(r1, c1, r2, c2) {
   if (r2 === r1 - 1) {
-    return wallExists(game.horizontalWalls, r2, c2) ||
-           wallExists(game.horizontalWalls, r2, c2 - 1);
+    return (
+      wallExists(game.horizontalWalls, r2, c2) ||
+      wallExists(game.horizontalWalls, r2, c2 - 1)
+    );
   }
 
   if (r2 === r1 + 1) {
-    return wallExists(game.horizontalWalls, r1, c2) ||
-           wallExists(game.horizontalWalls, r1, c2 - 1);
+    return (
+      wallExists(game.horizontalWalls, r1, c2) ||
+      wallExists(game.horizontalWalls, r1, c2 - 1)
+    );
   }
 
   if (r1 < 0 || r1 >= BOARD_SIZE) {
@@ -170,13 +172,17 @@ function isBlocked(r1, c1, r2, c2) {
   }
 
   if (c2 === c1 - 1) {
-    return wallExists(game.verticalWalls, r1, c2) ||
-           wallExists(game.verticalWalls, r1 - 1, c2);
+    return (
+      wallExists(game.verticalWalls, r1, c2) ||
+      wallExists(game.verticalWalls, r1 - 1, c2)
+    );
   }
 
   if (c2 === c1 + 1) {
-    return wallExists(game.verticalWalls, r1, c1) ||
-           wallExists(game.verticalWalls, r1 - 1, c1);
+    return (
+      wallExists(game.verticalWalls, r1, c1) ||
+      wallExists(game.verticalWalls, r1 - 1, c1)
+    );
   }
 
   return false;
@@ -188,7 +194,10 @@ function validNeighborFrom(current, nr, nc) {
   if (nr >= 0 && nr < BOARD_SIZE) return true;
 
   if (nr === OUTSIDE_TOP || nr === OUTSIDE_BOTTOM) {
-    if (current.r === nr && Math.abs(current.c - nc) === 1) return true;
+    if (current.r === nr && Math.abs(current.c - nc) === 1) {
+      return true;
+    }
+
     return nc === current.c;
   }
 
@@ -578,6 +587,15 @@ io.on("connection", socket => {
   });
 });
 
+setInterval(() => {
+  if (!game.started) return;
+  if (game.gameOver) return;
+  if (game.mode !== "timed") return;
+
+  updateActiveTimer();
+  broadcastGame();
+}, 1000);
+
 function getLocalIPAddresses() {
   const interfaces = os.networkInterfaces();
   const addresses = [];
@@ -592,15 +610,6 @@ function getLocalIPAddresses() {
 
   return addresses;
 }
-
-timerInterval = setInterval(() => {
-  if (!game.started) return;
-  if (game.gameOver) return;
-  if (game.mode !== "timed") return;
-
-  updateActiveTimer();
-  broadcastGame();
-}, 1000);
 
 const PORT = process.env.PORT || 3000;
 
