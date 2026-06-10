@@ -7,6 +7,7 @@ const undoBtn = document.getElementById("undoBtn");
 const restartBtn = document.getElementById("restartBtn");
 
 const playerInfo = document.getElementById("playerInfo");
+const timerInfo = document.getElementById("timerInfo");
 const waitingInfo = document.getElementById("waitingInfo");
 const turnInfo = document.getElementById("turnInfo");
 const winnerInfo = document.getElementById("winnerInfo");
@@ -15,12 +16,21 @@ const instructionOverlay = document.getElementById("instructionOverlay");
 const desktopInstruction = document.getElementById("desktopInstruction");
 const touchInstruction = document.getElementById("touchInstruction");
 
+const setupOverlay = document.getElementById("setupOverlay");
+const setupMessage = document.getElementById("setupMessage");
+const normalModeBtn = document.getElementById("normalModeBtn");
+const timedModeBtn = document.getElementById("timedModeBtn");
+const timerSetting = document.getElementById("timerSetting");
+const timerMinutesInput = document.getElementById("timerMinutesInput");
+const startGameBtn = document.getElementById("startGameBtn");
+
 const nextRoundOverlay = document.getElementById("nextRoundOverlay");
 const winnerFirstBtn = document.getElementById("winnerFirstBtn");
 const winnerSecondBtn = document.getElementById("winnerSecondBtn");
 
 let instructionClosed = false;
 let instructionLastTapTime = 0;
+let selectedMode = "normal";
 
 const INSTRUCTION_DOUBLE_TAP_TIME = 420;
 
@@ -131,6 +141,7 @@ let ignoreMouseClickUntil = 0;
 
 let pendingWallRotateTimer = null;
 let lastWallFreeTapTime = 0;
+let pendingPawnCancelTimer = null;
 
 const DOUBLE_TAP_TIME = 360;
 const TOUCH_TAP_MAX_DURATION = 280;
@@ -157,18 +168,48 @@ socket.on("playerAssigned", (player) => {
     playerInfo.textContent = "你：觀戰者";
   }
 
+  updateSetupOverlay();
   draw();
 });
 
 socket.on("gameState", (state) => {
   gameState = state;
   clearLocalSelections();
+  updateSetupOverlay();
   updateNextRoundOverlay();
   draw();
 });
 
 socket.on("playerDisconnected", () => {
   waitingInfo.textContent = "有玩家離線";
+});
+
+normalModeBtn.addEventListener("click", () => {
+  selectedMode = "normal";
+  normalModeBtn.classList.add("selectedMode");
+  timedModeBtn.classList.remove("selectedMode");
+  timerSetting.classList.add("hidden");
+});
+
+timedModeBtn.addEventListener("click", () => {
+  selectedMode = "timed";
+  timedModeBtn.classList.add("selectedMode");
+  normalModeBtn.classList.remove("selectedMode");
+  timerSetting.classList.remove("hidden");
+});
+
+startGameBtn.addEventListener("click", () => {
+  if (myPlayer !== 1) return;
+
+  let minutes = Number(timerMinutesInput.value);
+  if (!Number.isFinite(minutes)) minutes = 10;
+  minutes = Math.max(5, Math.min(60, Math.round(minutes)));
+  timerMinutesInput.value = minutes;
+
+  socket.emit("startGame", {
+    mode: selectedMode,
+    timerMinutes: minutes
+  });
 });
 
 undoBtn.addEventListener("click", () => {
@@ -189,6 +230,7 @@ winnerSecondBtn.addEventListener("click", () => {
 
 document.addEventListener("keydown", (e) => {
   if (!gameState) return;
+  if (!gameState.started) return;
   if (gameState.gameOver) return;
   if (!myPlayer) return;
 
@@ -251,6 +293,7 @@ canvas.addEventListener("touchstart", (e) => {
   };
 
   if (!gameState) return;
+  if (!gameState.started) return;
   if (gameState.gameOver) return;
   if (myPlayer !== gameState.currentPlayer) return;
 
@@ -273,6 +316,7 @@ canvas.addEventListener("touchstart", (e) => {
     selectedPawn = false;
     pendingPawnMove = null;
     clearPendingWallRotate();
+    clearPendingPawnCancel();
 
     selectedWall = {
       player: myPlayer,
@@ -334,6 +378,28 @@ canvas.addEventListener("touchend", (e) => {
   handleTouchTap(x, y);
 }, { passive: false });
 
+function updateSetupOverlay() {
+  if (!gameState || !setupOverlay) return;
+
+  if (gameState.started) {
+    setupOverlay.classList.add("hidden");
+    return;
+  }
+
+  setupOverlay.classList.remove("hidden");
+
+  if (myPlayer === 1) {
+    setupMessage.textContent = "請選擇模式";
+    startGameBtn.disabled = false;
+  } else if (myPlayer === 2) {
+    setupMessage.textContent = "等待玩家 1 設定";
+    startGameBtn.disabled = true;
+  } else {
+    setupMessage.textContent = "觀戰中，等待開始";
+    startGameBtn.disabled = true;
+  }
+}
+
 function updateNextRoundOverlay() {
   if (!gameState || !nextRoundOverlay) return;
 
@@ -346,6 +412,7 @@ function updateNextRoundOverlay() {
 
 function handleMouseCanvasAction(x, y) {
   if (!gameState) return;
+  if (!gameState.started) return;
   if (gameState.gameOver) return;
   if (myPlayer !== gameState.currentPlayer) return;
 
@@ -364,6 +431,7 @@ function handleMouseCanvasAction(x, y) {
 
     selectedPawn = false;
     pendingPawnMove = null;
+    clearPendingPawnCancel();
 
     selectedWall = {
       player: myPlayer,
@@ -425,6 +493,7 @@ function handleMousePawnAction(x, y) {
 
 function handleTouchTap(x, y) {
   if (!gameState) return;
+  if (!gameState.started) return;
   if (gameState.gameOver) return;
   if (myPlayer !== gameState.currentPlayer) return;
 
@@ -451,6 +520,45 @@ function handleTouchPawnTap(x, y) {
     return;
   }
 
+  if (selectedPawn && tappedPawn) {
+    if (pendingPawnMove) {
+      const now = Date.now();
+
+      if (
+        lastTap.type === "pawnCancelCandidate" &&
+        now - lastTap.time <= DOUBLE_TAP_TIME
+      ) {
+        clearPendingPawnCancel();
+
+        socket.emit("move", {
+          targetR: pendingPawnMove.targetR,
+          targetC: pendingPawnMove.targetC
+        });
+
+        clearLocalSelections();
+        return;
+      }
+
+      clearPendingPawnCancel();
+
+      lastTap = {
+        type: "pawnCancelCandidate",
+        time: now
+      };
+
+      pendingPawnCancelTimer = setTimeout(() => {
+        clearLocalSelections();
+        draw();
+      }, DOUBLE_TAP_TIME);
+
+      return;
+    }
+
+    clearLocalSelections();
+    draw();
+    return;
+  }
+
   if (selectedPawn && pendingPawnMove) {
     const tappedValidCell = tappedCell
       ? getMoveFromTappedCell(tappedCell.logicalR, tappedCell.logicalC)
@@ -463,6 +571,7 @@ function handleTouchPawnTap(x, y) {
         tappedValidCell.targetC !== pendingPawnMove.targetC
       )
     ) {
+      clearPendingPawnCancel();
       pendingPawnMove = tappedValidCell;
       recordTap("pawnConfirm");
       draw();
@@ -470,6 +579,8 @@ function handleTouchPawnTap(x, y) {
     }
 
     if (isDoubleTap("pawnConfirm")) {
+      clearPendingPawnCancel();
+
       socket.emit("move", {
         targetR: pendingPawnMove.targetR,
         targetC: pendingPawnMove.targetC
@@ -488,6 +599,7 @@ function handleTouchPawnTap(x, y) {
     const move = getMoveFromTappedCell(tappedCell.logicalR, tappedCell.logicalC);
 
     if (move) {
+      clearPendingPawnCancel();
       pendingPawnMove = move;
       recordTap("pawnConfirm");
       draw();
@@ -560,6 +672,13 @@ function clearPendingWallRotate() {
   }
 }
 
+function clearPendingPawnCancel() {
+  if (pendingPawnCancelTimer) {
+    clearTimeout(pendingPawnCancelTimer);
+    pendingPawnCancelTimer = null;
+  }
+}
+
 function tryConfirmWallPlacement() {
   if (!selectedWall || !previewWall) return false;
 
@@ -601,6 +720,7 @@ function isDoubleTap(type) {
 
 function clearLocalSelections() {
   clearPendingWallRotate();
+  clearPendingPawnCancel();
 
   selectedWall = null;
   previewWall = null;
@@ -747,7 +867,7 @@ function drawWallInventory() {
       let fill = "lightgray";
 
       if (i < gameState.players[pid].walls) {
-        if (pid === gameState.currentPlayer) {
+        if (pid === gameState.currentPlayer && gameState.started) {
           fill = pid === 1 ? colors.p1Wall : colors.p2Wall;
         } else {
           fill = colors.inactive;
@@ -812,7 +932,7 @@ function drawPlayers() {
       cy = MARGIN_Y + vr * CELL + CELL / 2;
     }
 
-    const active = pid === gameState.currentPlayer;
+    const active = pid === gameState.currentPlayer && gameState.started;
     const fill = active ? (pid === 1 ? colors.p1 : colors.p2) : colors.inactive;
     const highlight = selectedPawn && pid === myPlayer && active;
 
@@ -1079,9 +1199,7 @@ function canMoveToClient(pid, row, col) {
     row === startOutsideRow &&
     Math.abs(c - col) === 1;
 
-  if (isOutsideStartSideMove) {
-    return true;
-  }
+  if (isOutsideStartSideMove) return true;
 
   const isInitialEntry =
     (pid === 1 && r === OUTSIDE_BOTTOM && row === BOARD_SIZE - 1) ||
@@ -1282,6 +1400,14 @@ function canPlaceWallClient(orientation, r, c) {
          hasPathClient(2, horizontalWalls, verticalWalls);
 }
 
+function formatTime(ms) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 function drawInfo() {
   if (!gameState) return;
 
@@ -1296,10 +1422,25 @@ function drawInfo() {
     waitingInfo.textContent = "";
   }
 
-  turnInfo.textContent = `回合：玩家 ${gameState.currentPlayer}`;
+  if (!gameState.started) {
+    turnInfo.textContent = "尚未開始";
+  } else {
+    turnInfo.textContent = `回合：玩家 ${gameState.currentPlayer}`;
+  }
+
+  if (gameState.mode === "timed") {
+    timerInfo.textContent =
+      `P1 ${formatTime(gameState.timers[1])}｜P2 ${formatTime(gameState.timers[2])}`;
+  } else {
+    timerInfo.textContent = "一般模式";
+  }
 
   if (gameState.gameOver) {
-    winnerInfo.textContent = `玩家 ${gameState.winner} 獲勝`;
+    if (gameState.timeLoser) {
+      winnerInfo.textContent = `玩家 ${gameState.winner} 獲勝｜玩家 ${gameState.timeLoser} 超時`;
+    } else {
+      winnerInfo.textContent = `玩家 ${gameState.winner} 獲勝`;
+    }
   } else {
     winnerInfo.textContent = "";
   }
