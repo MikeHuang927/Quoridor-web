@@ -52,6 +52,31 @@ body {
   color: green;
 }
 
+.topTimer {
+  min-width: 112px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: white;
+  font-weight: 900;
+  font-size: 21px;
+  line-height: 1.15;
+  border: 4px solid currentColor;
+  box-sizing: border-box;
+}
+
+.p1Timer {
+  color: blue;
+}
+
+.p2Timer {
+  color: red;
+}
+
+.topTimer.activeTimer {
+  background: #fff8d8;
+  box-shadow: 0 0 0 3px gold;
+}
+
 #gameCanvas {
   background: white;
   border: 1px solid #d0d0d0;
@@ -388,8 +413,15 @@ button {
 
   #infoPanel {
     font-size: 16px;
-    gap: 10px;
+    gap: 9px;
     min-height: 54px;
+  }
+
+  .topTimer {
+    min-width: 86px;
+    font-size: 15px;
+    padding: 3px 7px;
+    border-width: 3px;
   }
 
   #bottomPanel button {
